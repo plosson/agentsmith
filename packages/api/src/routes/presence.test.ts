@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { createTestContext, authHeader, type TestContext } from "../test-utils";
+import { authHeader, createTestContext, type TestContext } from "../test-utils";
 
 describe("Presence route", () => {
   let ctx: TestContext;
@@ -17,7 +17,13 @@ describe("Presence route", () => {
     return res.json();
   }
 
-  async function emitSignal(roomId: string, sub: string, email: string, sessionId: string, signal: string) {
+  async function emitSignal(
+    roomId: string,
+    sub: string,
+    email: string,
+    sessionId: string,
+    signal: string,
+  ) {
     return ctx.app.request(`/api/v1/rooms/${roomId}/events`, {
       method: "POST",
       headers: { "Content-Type": "application/json", ...authHeader(sub, email) },

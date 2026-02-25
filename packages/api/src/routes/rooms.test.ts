@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { createTestContext, authHeader, type TestContext } from "../test-utils";
+import { authHeader, createTestContext, type TestContext } from "../test-utils";
 
 describe("Room routes", () => {
   let ctx: TestContext;

@@ -1,8 +1,8 @@
 import { Database } from "bun:sqlite";
 import { afterEach, describe, expect, it } from "bun:test";
 import { migrate } from "./migrate";
+import { addMember, createRoom, getRoomWithMembers, listRooms } from "./rooms";
 import { upsertUser } from "./users";
-import { createRoom, listRooms, getRoomWithMembers, addMember } from "./rooms";
 
 describe("rooms db", () => {
   let db: Database;
@@ -49,8 +49,8 @@ describe("rooms db", () => {
     addMember(db, room.id, "user-1");
     const result = getRoomWithMembers(db, room.id);
     expect(result).toBeTruthy();
-    expect(result!.members).toHaveLength(1);
-    expect(result!.members[0].user_id).toBe("user-1");
+    expect(result?.members).toHaveLength(1);
+    expect(result?.members[0].user_id).toBe("user-1");
   });
 
   it("returns null for non-existent room", () => {
@@ -65,6 +65,6 @@ describe("rooms db", () => {
     addMember(db, room.id, "user-1");
     addMember(db, room.id, "user-1");
     const result = getRoomWithMembers(db, room.id);
-    expect(result!.members).toHaveLength(1);
+    expect(result?.members).toHaveLength(1);
   });
 });

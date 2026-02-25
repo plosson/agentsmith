@@ -1,7 +1,7 @@
 import type { Database } from "bun:sqlite";
-import { Hono } from "hono";
 import { createRoomSchema } from "@agentsmith/shared";
-import { createRoom, listRooms, getRoomWithMembers } from "../db/rooms";
+import { Hono } from "hono";
+import { createRoom, getRoomWithMembers, listRooms } from "../db/rooms";
 import { ConflictError, NotFoundError, ValidationError } from "../lib/errors";
 
 export function roomRoutes(db: Database): Hono {

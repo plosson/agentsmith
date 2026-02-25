@@ -1,10 +1,10 @@
 import { Database } from "bun:sqlite";
-import { Hono } from "hono";
 import { afterEach, describe, expect, it } from "bun:test";
+import { Hono } from "hono";
 import { migrate } from "../db/migrate";
+import { authHeader } from "../test-utils";
 import { authMiddleware } from "./auth";
 import { errorHandler } from "./error";
-import { authHeader } from "../test-utils";
 
 describe("auth middleware", () => {
   let db: Database;

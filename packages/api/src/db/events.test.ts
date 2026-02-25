@@ -1,9 +1,9 @@
 import { Database } from "bun:sqlite";
 import { afterEach, describe, expect, it } from "bun:test";
+import { deleteExpired, insertEvent, queryEvents } from "./events";
 import { migrate } from "./migrate";
-import { upsertUser } from "./users";
 import { createRoom } from "./rooms";
-import { insertEvent, queryEvents, deleteExpired } from "./events";
+import { upsertUser } from "./users";
 
 describe("events db", () => {
   let db: Database;
@@ -44,7 +44,7 @@ describe("events db", () => {
       payload: { session_id: "sess-1", signal: "Idle" },
       ttlSeconds: 600,
     });
-    const e2 = insertEvent(db, {
+    const _e2 = insertEvent(db, {
       roomId: room.id,
       senderId: "user-1",
       eventType: "session.signal",

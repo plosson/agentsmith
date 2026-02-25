@@ -1,11 +1,11 @@
 import type { Database } from "bun:sqlite";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
-import { errorHandler } from "./middleware/error";
 import { authMiddleware } from "./middleware/auth";
-import { roomRoutes } from "./routes/rooms";
+import { errorHandler } from "./middleware/error";
 import { eventRoutes } from "./routes/events";
 import { presenceRoutes } from "./routes/presence";
+import { roomRoutes } from "./routes/rooms";
 
 export function createApp(db: Database): Hono {
   const app = new Hono();

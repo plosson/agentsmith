@@ -1,7 +1,7 @@
 import { Database } from "bun:sqlite";
 import type { Hono } from "hono";
-import { migrate } from "./db/migrate";
 import { createApp } from "./app";
+import { migrate } from "./db/migrate";
 
 export interface TestContext {
   db: Database;

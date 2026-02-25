@@ -1,5 +1,5 @@
 import type { Database } from "bun:sqlite";
-import type { Room, RoomListItem, RoomWithMembers, RoomMember } from "@agentsmith/shared";
+import type { Room, RoomListItem, RoomMember, RoomWithMembers } from "@agentsmith/shared";
 import { generateUlid } from "../lib/ulid";
 
 export function createRoom(db: Database, name: string, createdBy: string): Room {

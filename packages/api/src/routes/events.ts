@@ -1,10 +1,15 @@
 import type { Database } from "bun:sqlite";
+import {
+  DEFAULT_TTL_SECONDS,
+  emitEventSchema,
+  pollEventsQuerySchema,
+  TTL_SECONDS,
+} from "@agentsmith/shared";
 import { Hono } from "hono";
-import { emitEventSchema, pollEventsQuerySchema, TTL_SECONDS, DEFAULT_TTL_SECONDS } from "@agentsmith/shared";
 import { insertEvent, queryEvents } from "../db/events";
 import { addMember } from "../db/rooms";
-import { NotFoundError, PayloadTooLargeError, ValidationError } from "../lib/errors";
 import { config } from "../lib/config";
+import { NotFoundError, PayloadTooLargeError, ValidationError } from "../lib/errors";
 
 export function eventRoutes(db: Database): Hono {
   const router = new Hono();
@@ -45,7 +50,12 @@ export function eventRoutes(db: Database): Hono {
     });
 
     return c.json(
-      { id: event.id, room_id: event.room_id, created_at: event.created_at, expires_at: event.expires_at },
+      {
+        id: event.id,
+        room_id: event.room_id,
+        created_at: event.created_at,
+        expires_at: event.expires_at,
+      },
       201,
     );
   });

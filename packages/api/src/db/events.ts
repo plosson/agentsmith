@@ -24,7 +24,16 @@ export function insertEvent(db: Database, params: InsertEventParams): Event {
   db.query(
     `INSERT INTO events (id, room_id, sender_id, event_type, payload, ttl_seconds, created_at, expires_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-  ).run(id, params.roomId, params.senderId, params.eventType, payloadStr, params.ttlSeconds, now, expiresAt);
+  ).run(
+    id,
+    params.roomId,
+    params.senderId,
+    params.eventType,
+    payloadStr,
+    params.ttlSeconds,
+    now,
+    expiresAt,
+  );
 
   return {
     id,
@@ -38,7 +47,12 @@ export function insertEvent(db: Database, params: InsertEventParams): Event {
   };
 }
 
-export function queryEvents(db: Database, roomId: string, since: number, limit: number): QueryEventsResult {
+export function queryEvents(
+  db: Database,
+  roomId: string,
+  since: number,
+  limit: number,
+): QueryEventsResult {
   const now = Date.now();
   const rows = db
     .query(

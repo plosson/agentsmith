@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { createTestContext, authHeader, type TestContext } from "../test-utils";
+import { authHeader, createTestContext, type TestContext } from "../test-utils";
 
 describe("Event routes", () => {
   let ctx: TestContext;
@@ -25,7 +25,10 @@ describe("Event routes", () => {
       const room = await createRoom("test-room", "plugin-1", "alice@test.com");
       const res = await ctx.app.request(`/api/v1/rooms/${room.id}/events`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", ...authHeader("plugin-1", "alice@test.com") },
+        headers: {
+          "Content-Type": "application/json",
+          ...authHeader("plugin-1", "alice@test.com"),
+        },
         body: JSON.stringify({
           event_type: "session.signal",
           payload: { session_id: "sess-1", signal: "Idle" },
@@ -43,7 +46,10 @@ describe("Event routes", () => {
       const room = await createRoom("test-room", "plugin-1", "alice@test.com");
       await ctx.app.request(`/api/v1/rooms/${room.id}/events`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", ...authHeader("plugin-1", "alice@test.com") },
+        headers: {
+          "Content-Type": "application/json",
+          ...authHeader("plugin-1", "alice@test.com"),
+        },
         body: JSON.stringify({
           event_type: "session.signal",
           payload: { session_id: "sess-1", signal: "Idle" },
@@ -61,7 +67,10 @@ describe("Event routes", () => {
       ctx = createTestContext();
       const res = await ctx.app.request("/api/v1/rooms/nonexistent/events", {
         method: "POST",
-        headers: { "Content-Type": "application/json", ...authHeader("plugin-1", "alice@test.com") },
+        headers: {
+          "Content-Type": "application/json",
+          ...authHeader("plugin-1", "alice@test.com"),
+        },
         body: JSON.stringify({ event_type: "session.signal", payload: {} }),
       });
       expect(res.status).toBe(404);
@@ -72,7 +81,10 @@ describe("Event routes", () => {
       const room = await createRoom("test-room", "plugin-1", "alice@test.com");
       const res = await ctx.app.request(`/api/v1/rooms/${room.id}/events`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", ...authHeader("plugin-1", "alice@test.com") },
+        headers: {
+          "Content-Type": "application/json",
+          ...authHeader("plugin-1", "alice@test.com"),
+        },
         body: JSON.stringify({ event_type: "", payload: {} }),
       });
       expect(res.status).toBe(400);
@@ -84,7 +96,10 @@ describe("Event routes", () => {
       const bigPayload = { data: "x".repeat(70_000) };
       const res = await ctx.app.request(`/api/v1/rooms/${room.id}/events`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", ...authHeader("plugin-1", "alice@test.com") },
+        headers: {
+          "Content-Type": "application/json",
+          ...authHeader("plugin-1", "alice@test.com"),
+        },
         body: JSON.stringify({ event_type: "session.signal", payload: bigPayload }),
       });
       expect(res.status).toBe(413);
@@ -99,7 +114,10 @@ describe("Event routes", () => {
       const room = await createRoom("test-room", "plugin-1", "alice@test.com");
       await ctx.app.request(`/api/v1/rooms/${room.id}/events`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", ...authHeader("plugin-1", "alice@test.com") },
+        headers: {
+          "Content-Type": "application/json",
+          ...authHeader("plugin-1", "alice@test.com"),
+        },
         body: JSON.stringify({
           event_type: "session.signal",
           payload: { session_id: "sess-1", signal: "Idle" },

@@ -2,30 +2,22 @@
   "hooks": {
     "PreToolUse": [
       {
-        "hooks": [
-          { "type": "command", "command": "bin/agentsmith hook --event PreToolUse" }
-        ]
+        "hooks": [{ "type": "command", "command": "bin/agentsmith hook --event PreToolUse" }]
       }
     ],
     "PostToolUse": [
       {
-        "hooks": [
-          { "type": "command", "command": "bin/agentsmith hook --event PostToolUse" }
-        ]
+        "hooks": [{ "type": "command", "command": "bin/agentsmith hook --event PostToolUse" }]
       }
     ],
     "Stop": [
       {
-        "hooks": [
-          { "type": "command", "command": "bin/agentsmith hook --event Stop" }
-        ]
+        "hooks": [{ "type": "command", "command": "bin/agentsmith hook --event Stop" }]
       }
     ],
     "Notification": [
       {
-        "hooks": [
-          { "type": "command", "command": "bin/agentsmith hook --event Notification" }
-        ]
+        "hooks": [{ "type": "command", "command": "bin/agentsmith hook --event Notification" }]
       }
     ]
   }
