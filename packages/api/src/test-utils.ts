@@ -1,9 +1,7 @@
 import { Database } from "bun:sqlite";
-import { Hono } from "hono";
-import { cors } from "hono/cors";
+import type { Hono } from "hono";
 import { migrate } from "./db/migrate";
-import { errorHandler } from "./middleware/error";
-import { authMiddleware } from "./middleware/auth";
+import { createApp } from "./app";
 
 export interface TestContext {
   db: Database;
@@ -15,12 +13,7 @@ export function createTestContext(): TestContext {
   db.exec("PRAGMA foreign_keys = ON");
   migrate(db);
 
-  const app = new Hono();
-  app.use("*", cors());
-  app.use("/api/*", authMiddleware(db));
-  app.onError(errorHandler);
-  app.get("/health", (c) => c.json({ status: "ok" }));
-
+  const app = createApp(db);
   return { db, app };
 }
 

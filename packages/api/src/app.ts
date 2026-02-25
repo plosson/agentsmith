@@ -1,14 +1,20 @@
+import type { Database } from "bun:sqlite";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { errorHandler } from "./middleware/error";
-import { requestLogger } from "./middleware/logger";
+import { authMiddleware } from "./middleware/auth";
+import { roomRoutes } from "./routes/rooms";
 
-const app = new Hono();
+export function createApp(db: Database): Hono {
+  const app = new Hono();
 
-app.use("*", requestLogger);
-app.use("*", cors());
-app.onError(errorHandler);
+  app.use("*", cors());
+  app.onError(errorHandler);
 
-app.get("/health", (c) => c.json({ status: "ok" }));
+  app.get("/health", (c) => c.json({ status: "ok" }));
 
-export default app;
+  app.use("/api/*", authMiddleware(db));
+  app.route("/api/v1", roomRoutes(db));
+
+  return app;
+}
