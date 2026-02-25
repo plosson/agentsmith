@@ -5,6 +5,7 @@ import { errorHandler } from "./middleware/error";
 import { authMiddleware } from "./middleware/auth";
 import { roomRoutes } from "./routes/rooms";
 import { eventRoutes } from "./routes/events";
+import { presenceRoutes } from "./routes/presence";
 
 export function createApp(db: Database): Hono {
   const app = new Hono();
@@ -17,6 +18,7 @@ export function createApp(db: Database): Hono {
   app.use("/api/*", authMiddleware(db));
   app.route("/api/v1", roomRoutes(db));
   app.route("/api/v1", eventRoutes(db));
+  app.route("/api/v1", presenceRoutes(db));
 
   return app;
 }
