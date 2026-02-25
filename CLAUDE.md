@@ -22,14 +22,33 @@ agentsmith/                      # Bun monorepo (workspaces in packages/*)
 │   ├── .claude-plugin/          # Plugin manifest (plugin.json)
 │   └── hooks/
 │       ├── hooks.json           # Hook definitions (SessionStart, PreToolUse, etc.)
-│       └── scripts/
-│           ├── init.sh          # SessionStart: load config → $CLAUDE_ENV_FILE
-│           └── emit.sh          # All other hooks: curl POST to API
+│       ├── scripts/
+│       │   ├── init.sh          # SessionStart: start proxy + load config → $CLAUDE_ENV_FILE
+│       │   └── emit.sh          # All other hooks: curl POST to local proxy
+│       └── proxy/
+│           └── proxy.ts         # Local proxy server (Bun), started by init.sh
 ├── docs/
 │   ├── specs/                   # PRD, TRD, API guidelines, plugin specs
 │   └── plans/                   # Implementation plans
 └── docker/Dockerfile            # Multi-stage build for server deployment
 ```
+
+## Architecture
+
+```
+plugin (emit.sh) → proxy (local, started by init.sh) → API server (remote)
+```
+
+- `init.sh` starts `proxy.ts` in the background on `SessionStart` (if not already running)
+- The **plugin** sends hook events to `AGENTSMITH_CLIENT_URL` (local proxy)
+- The **proxy** receives events, transforms them, and forwards to `AGENTSMITH_SERVER_URL` (remote API)
+- Config lives at `~/.config/agentsmith/config` (shell KEY=VALUE format)
+
+Key config variables:
+- `AGENTSMITH_SERVER_URL` — remote API server URL (required)
+- `AGENTSMITH_CLIENT_URL` — local proxy URL (written by proxy on startup)
+- `AGENTSMITH_KEY` — auth token
+- `AGENTSMITH_ROOM` — target room name
 
 ## Tech Stack
 
@@ -48,7 +67,7 @@ agentsmith/                      # Bun monorepo (workspaces in packages/*)
 ```bash
 bun test                      # Run all tests
 bun test packages/api         # Test API only
-bun run dev:api               # Dev server with watch
+bun run dev:api               # Dev API server with watch
 bun run lint                  # Biome check
 bun run format                # Biome format
 bun run typecheck             # TypeScript check (all packages)
@@ -70,15 +89,15 @@ bun run typecheck             # TypeScript check (all packages)
 
 ## Plugin Development
 
-The plugin lives in `plugin/` (top-level) and follows the Claude Code plugin specification. It is pure shell — no build step, no TypeScript, no compiled binary.
+The plugin lives in `plugin/` (top-level) and follows the Claude Code plugin specification. Hooks are shell scripts; the local proxy (`proxy.ts`) is a Bun server started in the background by `init.sh`.
 
 **Before working on the plugin, read:** `docs/specs/plugin-specs.md`
 
 Key concepts:
 - The plugin manifest is at `plugin/.claude-plugin/plugin.json`
 - Hooks are defined in `plugin/hooks/hooks.json`
-- `SessionStart` runs `init.sh` which loads `~/.config/agentsmith/config` into `$CLAUDE_ENV_FILE`
-- All other hooks run `emit.sh` which wraps the stdin JSON payload and POSTs it to the API via `curl`
+- `SessionStart` runs `init.sh` which starts `proxy.ts` in the background (if not running) and loads `~/.config/agentsmith/config` into `$CLAUDE_ENV_FILE`
+- All other hooks run `emit.sh` which wraps the stdin JSON payload and POSTs it to the local proxy via `curl`
 - Hooks use `"async": true` so they never block Claude Code
 - Test locally by running Claude with the plugin loaded:
 

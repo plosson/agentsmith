@@ -7,17 +7,13 @@
   "scripts": {
     "dev:api": "bun run --watch packages/api/src/index.ts",
     "build:api": "bun build --target=bun --outdir=packages/api/dist packages/api/src/index.ts",
-    "build:plugin": "bun run --filter @agentsmith/plugin build:local",
-    "build:plugin:all": "bun run --filter @agentsmith/plugin build",
     "test": "bun test",
     "test:api": "bun test packages/api",
-    "test:plugin": "bun test packages/plugin",
     "lint": "bunx biome check .",
     "format": "bunx biome format --write .",
-    "typecheck": "bun run typecheck:shared && bun run typecheck:api && bun run typecheck:plugin",
+    "typecheck": "bun run typecheck:shared && bun run typecheck:api",
     "typecheck:shared": "tsc --noEmit -p packages/shared",
-    "typecheck:api": "tsc --noEmit -p packages/api",
-    "typecheck:plugin": "tsc --noEmit -p packages/plugin"
+    "typecheck:api": "tsc --noEmit -p packages/api"
   },
   "devDependencies": {
     "@biomejs/biome": "latest",

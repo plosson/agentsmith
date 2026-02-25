@@ -20,13 +20,6 @@
         "ulid": "^3.0.2",
       },
     },
-    "packages/plugin": {
-      "name": "@agentsmith/plugin",
-      "version": "0.1.0",
-      "dependencies": {
-        "@agentsmith/shared": "workspace:*",
-      },
-    },
     "packages/shared": {
       "name": "@agentsmith/shared",
       "version": "0.1.0",
@@ -37,8 +30,6 @@
   },
   "packages": {
     "@agentsmith/api": ["@agentsmith/api@workspace:packages/api"],
-
-    "@agentsmith/plugin": ["@agentsmith/plugin@workspace:packages/plugin"],
 
     "@agentsmith/shared": ["@agentsmith/shared@workspace:packages/shared"],
 
