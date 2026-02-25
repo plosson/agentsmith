@@ -4,6 +4,7 @@ import { cors } from "hono/cors";
 import { errorHandler } from "./middleware/error";
 import { authMiddleware } from "./middleware/auth";
 import { roomRoutes } from "./routes/rooms";
+import { eventRoutes } from "./routes/events";
 
 export function createApp(db: Database): Hono {
   const app = new Hono();
@@ -15,6 +16,7 @@ export function createApp(db: Database): Hono {
 
   app.use("/api/*", authMiddleware(db));
   app.route("/api/v1", roomRoutes(db));
+  app.route("/api/v1", eventRoutes(db));
 
   return app;
 }
