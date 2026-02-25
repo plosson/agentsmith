@@ -1,0 +1,17 @@
+{
+  "name": "@agentsmith/plugin",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "src/cli.ts",
+  "scripts": {
+    "build": "bun run build:darwin-arm64 && bun run build:darwin-x64 && bun run build:linux-x64",
+    "build:darwin-arm64": "bun build --compile --target=bun-darwin-arm64 --outfile=bin/agentsmith-darwin-arm64 src/cli.ts",
+    "build:darwin-x64": "bun build --compile --target=bun-darwin-x64 --outfile=bin/agentsmith-darwin-x64 src/cli.ts",
+    "build:linux-x64": "bun build --compile --target=bun-linux-x64 --outfile=bin/agentsmith-linux-x64 src/cli.ts",
+    "build:local": "bun build --compile --outfile=bin/agentsmith src/cli.ts"
+  },
+  "dependencies": {
+    "@agentsmith/shared": "workspace:*"
+  }
+}
