@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
-import { requestLogger } from "./middleware/logger";
 import { errorHandler } from "./middleware/error";
+import { requestLogger } from "./middleware/logger";
 
 const app = new Hono();
 

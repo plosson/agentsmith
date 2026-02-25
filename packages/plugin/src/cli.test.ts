@@ -3,7 +3,7 @@ import { describe, expect, it } from "bun:test";
 describe("CLI", () => {
   it("prints version", async () => {
     const proc = Bun.spawn(["bun", "run", "src/cli.ts", "version"], {
-      cwd: import.meta.dir + "/..",
+      cwd: `${import.meta.dir}/..`,
       stdout: "pipe",
     });
     const output = await new Response(proc.stdout).text();
@@ -14,7 +14,7 @@ describe("CLI", () => {
 
   it("exits 1 on unknown command", async () => {
     const proc = Bun.spawn(["bun", "run", "src/cli.ts", "bogus"], {
-      cwd: import.meta.dir + "/..",
+      cwd: `${import.meta.dir}/..`,
       stderr: "pipe",
     });
     await proc.exited;
@@ -23,7 +23,7 @@ describe("CLI", () => {
 
   it("handles hook command with --event", async () => {
     const proc = Bun.spawn(["bun", "run", "src/cli.ts", "hook", "--event", "PreToolUse"], {
-      cwd: import.meta.dir + "/..",
+      cwd: `${import.meta.dir}/..`,
       stdout: "pipe",
     });
     const output = await new Response(proc.stdout).text();

@@ -12,9 +12,10 @@ describe("generateUlid", () => {
     expect(ids.size).toBe(100);
   });
 
-  it("is lexicographically sortable by time", () => {
+  it("is lexicographically sortable by time", async () => {
     const id1 = generateUlid();
+    await new Promise((r) => setTimeout(r, 2));
     const id2 = generateUlid();
-    expect(id2 >= id1).toBe(true);
+    expect(id2 > id1).toBe(true);
   });
 });
