@@ -17,6 +17,20 @@ describe("Event routes", () => {
     return res.json();
   }
 
+  function makeEvent(
+    roomId: string,
+    overrides: Record<string, unknown> = {},
+  ): Record<string, unknown> {
+    return {
+      room_id: roomId,
+      type: "hook.Stop",
+      format: "claude_code_v27",
+      sender: { user_id: "alice@test.com" },
+      payload: { status: "idle" },
+      ...overrides,
+    };
+  }
+
   // --- Plugin client emits session signals ---
 
   describe("POST /api/v1/rooms/:roomId/events (plugin emits signal)", () => {
@@ -29,10 +43,7 @@ describe("Event routes", () => {
           "Content-Type": "application/json",
           ...authHeader("plugin-1", "alice@test.com"),
         },
-        body: JSON.stringify({
-          event_type: "session.signal",
-          payload: { session_id: "sess-1", signal: "Idle" },
-        }),
+        body: JSON.stringify(makeEvent(room.id)),
       });
       expect(res.status).toBe(201);
       const json = await res.json();
@@ -51,10 +62,7 @@ describe("Event routes", () => {
           "Content-Type": "application/json",
           ...authHeader("plugin-1", "alice@test.com"),
         },
-        body: JSON.stringify({
-          event_type: "session.signal",
-          payload: { session_id: "sess-1", signal: "Idle" },
-        }),
+        body: JSON.stringify(makeEvent(room.id)),
       });
       const detailRes = await ctx.app.request(`/api/v1/rooms/${room.id}`, {
         headers: authHeader("plugin-1", "alice@test.com"),
@@ -72,12 +80,12 @@ describe("Event routes", () => {
           "Content-Type": "application/json",
           ...authHeader("plugin-1", "alice@test.com"),
         },
-        body: JSON.stringify({ event_type: "session.signal", payload: {} }),
+        body: JSON.stringify(makeEvent("nonexistent")),
       });
       expect(res.status).toBe(404);
     });
 
-    it("returns 400 for invalid body", async () => {
+    it("returns 400 for invalid body (empty type)", async () => {
       ctx = createTestContext();
       const room = await createRoom("test-room", "plugin-1", "alice@test.com");
       const res = await ctx.app.request(`/api/v1/rooms/${room.id}/events`, {
@@ -86,7 +94,21 @@ describe("Event routes", () => {
           "Content-Type": "application/json",
           ...authHeader("plugin-1", "alice@test.com"),
         },
-        body: JSON.stringify({ event_type: "", payload: {} }),
+        body: JSON.stringify(makeEvent(room.id, { type: "" })),
+      });
+      expect(res.status).toBe(400);
+    });
+
+    it("returns 400 when room_id in body mismatches URL", async () => {
+      ctx = createTestContext();
+      const room = await createRoom("test-room", "plugin-1", "alice@test.com");
+      const res = await ctx.app.request(`/api/v1/rooms/${room.id}/events`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...authHeader("plugin-1", "alice@test.com"),
+        },
+        body: JSON.stringify(makeEvent("wrong-room-id")),
       });
       expect(res.status).toBe(400);
     });
@@ -94,14 +116,13 @@ describe("Event routes", () => {
     it("returns 413 for oversized payload", async () => {
       ctx = createTestContext();
       const room = await createRoom("test-room", "plugin-1", "alice@test.com");
-      const bigPayload = { data: "x".repeat(70_000) };
       const res = await ctx.app.request(`/api/v1/rooms/${room.id}/events`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           ...authHeader("plugin-1", "alice@test.com"),
         },
-        body: JSON.stringify({ event_type: "session.signal", payload: bigPayload }),
+        body: JSON.stringify(makeEvent(room.id, { payload: { data: "x".repeat(70_000) } })),
       });
       expect(res.status).toBe(413);
     });
@@ -121,11 +142,15 @@ describe("Event routes", () => {
           "Content-Type": "application/json",
           ...authHeader("web-1", "bob@test.com"),
         },
-        body: JSON.stringify({
-          event_type: "interaction",
-          payload: { action: "ping" },
-          target_user_id: "alice@test.com",
-        }),
+        body: JSON.stringify(
+          makeEvent(room.id, {
+            type: "interaction",
+            format: "canvas_v1",
+            sender: { user_id: "bob@test.com" },
+            target: { user_id: "alice@test.com" },
+            payload: { action: "ping" },
+          }),
+        ),
       });
 
       // Plugin emits event → response includes messages
@@ -135,11 +160,11 @@ describe("Event routes", () => {
           "Content-Type": "application/json",
           ...authHeader("plugin-1", "alice@test.com"),
         },
-        body: JSON.stringify({
-          event_type: "session.signal",
-          sender_session_id: "sess-1",
-          payload: { session_id: "sess-1", signal: "Idle" },
-        }),
+        body: JSON.stringify(
+          makeEvent(room.id, {
+            sender: { user_id: "alice@test.com", session_id: "sess-1" },
+          }),
+        ),
       });
       expect(res.status).toBe(201);
       const json = await res.json();
@@ -158,11 +183,15 @@ describe("Event routes", () => {
           "Content-Type": "application/json",
           ...authHeader("web-1", "bob@test.com"),
         },
-        body: JSON.stringify({
-          event_type: "interaction",
-          payload: { action: "ping" },
-          target_user_id: "alice@test.com",
-        }),
+        body: JSON.stringify(
+          makeEvent(room.id, {
+            type: "interaction",
+            format: "canvas_v1",
+            sender: { user_id: "bob@test.com" },
+            target: { user_id: "alice@test.com" },
+            payload: { action: "ping" },
+          }),
+        ),
       });
 
       // First emit consumes the message
@@ -172,10 +201,7 @@ describe("Event routes", () => {
           "Content-Type": "application/json",
           ...authHeader("plugin-1", "alice@test.com"),
         },
-        body: JSON.stringify({
-          event_type: "session.signal",
-          payload: { signal: "Idle" },
-        }),
+        body: JSON.stringify(makeEvent(room.id)),
       });
 
       // Second emit returns no messages
@@ -185,10 +211,7 @@ describe("Event routes", () => {
           "Content-Type": "application/json",
           ...authHeader("plugin-1", "alice@test.com"),
         },
-        body: JSON.stringify({
-          event_type: "session.signal",
-          payload: { signal: "Idle" },
-        }),
+        body: JSON.stringify(makeEvent(room.id)),
       });
       const json = await res.json();
       expect(json.messages).toHaveLength(0);
@@ -205,12 +228,15 @@ describe("Event routes", () => {
           "Content-Type": "application/json",
           ...authHeader("web-1", "bob@test.com"),
         },
-        body: JSON.stringify({
-          event_type: "interaction",
-          payload: { action: "specific" },
-          target_user_id: "alice@test.com",
-          target_session_id: "sess-2",
-        }),
+        body: JSON.stringify(
+          makeEvent(room.id, {
+            type: "interaction",
+            format: "canvas_v1",
+            sender: { user_id: "bob@test.com" },
+            target: { user_id: "alice@test.com", session_id: "sess-2" },
+            payload: { action: "specific" },
+          }),
+        ),
       });
 
       // sess-1 should NOT receive it
@@ -220,11 +246,11 @@ describe("Event routes", () => {
           "Content-Type": "application/json",
           ...authHeader("plugin-1", "alice@test.com"),
         },
-        body: JSON.stringify({
-          event_type: "session.signal",
-          sender_session_id: "sess-1",
-          payload: { signal: "Idle" },
-        }),
+        body: JSON.stringify(
+          makeEvent(room.id, {
+            sender: { user_id: "alice@test.com", session_id: "sess-1" },
+          }),
+        ),
       });
       const json1 = await res1.json();
       expect(json1.messages).toHaveLength(0);
@@ -236,11 +262,11 @@ describe("Event routes", () => {
           "Content-Type": "application/json",
           ...authHeader("plugin-1", "alice@test.com"),
         },
-        body: JSON.stringify({
-          event_type: "session.signal",
-          sender_session_id: "sess-2",
-          payload: { signal: "Idle" },
-        }),
+        body: JSON.stringify(
+          makeEvent(room.id, {
+            sender: { user_id: "alice@test.com", session_id: "sess-2" },
+          }),
+        ),
       });
       const json2 = await res2.json();
       expect(json2.messages).toHaveLength(1);
@@ -258,10 +284,7 @@ describe("Event routes", () => {
           "Content-Type": "application/json",
           ...authHeader("plugin-1", "alice@test.com"),
         },
-        body: JSON.stringify({
-          event_type: "session.signal",
-          payload: { signal: "Idle" },
-        }),
+        body: JSON.stringify(makeEvent(room.id)),
       });
 
       // Targeted event
@@ -271,11 +294,15 @@ describe("Event routes", () => {
           "Content-Type": "application/json",
           ...authHeader("web-1", "bob@test.com"),
         },
-        body: JSON.stringify({
-          event_type: "interaction",
-          payload: { action: "ping" },
-          target_user_id: "alice@test.com",
-        }),
+        body: JSON.stringify(
+          makeEvent(room.id, {
+            type: "interaction",
+            format: "canvas_v1",
+            sender: { user_id: "bob@test.com" },
+            target: { user_id: "alice@test.com" },
+            payload: { action: "ping" },
+          }),
+        ),
       });
 
       // Poll should only return the broadcast event
@@ -284,7 +311,7 @@ describe("Event routes", () => {
       });
       const json = await res.json();
       expect(json.events).toHaveLength(1);
-      expect(json.events[0].event_type).toBe("session.signal");
+      expect(json.events[0].type).toBe("hook.Stop");
     });
   });
 
@@ -300,10 +327,7 @@ describe("Event routes", () => {
           "Content-Type": "application/json",
           ...authHeader("plugin-1", "alice@test.com"),
         },
-        body: JSON.stringify({
-          event_type: "session.signal",
-          payload: { session_id: "sess-1", signal: "Idle" },
-        }),
+        body: JSON.stringify(makeEvent(room.id)),
       });
 
       const res = await ctx.app.request(`/api/v1/rooms/${room.id}/events?since=0&limit=50`, {
@@ -312,7 +336,9 @@ describe("Event routes", () => {
       expect(res.status).toBe(200);
       const json = await res.json();
       expect(json.events).toHaveLength(1);
-      expect(json.events[0].event_type).toBe("session.signal");
+      expect(json.events[0].type).toBe("hook.Stop");
+      expect(json.events[0].format).toBe("claude_code_v27");
+      expect(json.events[0].sender.user_id).toBe("alice@test.com");
       expect(json.latest_ts).toBeGreaterThan(0);
     });
 
@@ -335,6 +361,28 @@ describe("Event routes", () => {
       expect(res.status).toBe(200);
       const json = await res.json();
       expect(json.events).toHaveLength(0);
+    });
+
+    it("supports ?format= query param (passthrough for same format)", async () => {
+      ctx = createTestContext();
+      const room = await createRoom("test-room", "plugin-1", "alice@test.com");
+      await ctx.app.request(`/api/v1/rooms/${room.id}/events`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...authHeader("plugin-1", "alice@test.com"),
+        },
+        body: JSON.stringify(makeEvent(room.id)),
+      });
+
+      const res = await ctx.app.request(
+        `/api/v1/rooms/${room.id}/events?since=0&limit=50&format=claude_code_v27`,
+        { headers: authHeader("web-user-1", "bob@test.com") },
+      );
+      expect(res.status).toBe(200);
+      const json = await res.json();
+      expect(json.events).toHaveLength(1);
+      expect(json.events[0].format).toBe("claude_code_v27");
     });
   });
 });

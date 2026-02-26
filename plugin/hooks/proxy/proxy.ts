@@ -89,8 +89,8 @@ export function getResponse(body: unknown, room?: string, baseDir = DEFAULT_QUEU
     }
   }
 
-  const event = (body as Record<string, unknown>)?.event_type as string | undefined;
-  const shortEvent = event?.replace("hook.", "") ?? "unknown";
+  const type = (body as Record<string, unknown>)?.type as string | undefined;
+  const shortEvent = type?.replace("hook.", "") ?? "unknown";
 
   const base: Record<string, unknown> = {
     systemMessage: `[AgentSmith] ${shortEvent}`,
@@ -104,11 +104,16 @@ export async function forward(
   path: string,
   body: unknown,
   baseDir = DEFAULT_QUEUE_BASE,
+  authHeader?: string,
 ): Promise<void> {
   try {
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (authHeader) {
+      headers.Authorization = authHeader;
+    }
     const res = await fetch(`${serverUrl}${path}`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: JSON.stringify(body),
     });
     const data = (await res.json()) as { success?: boolean; messages?: unknown[] };
@@ -129,14 +134,14 @@ export function forwardLocal(path: string, body: unknown, baseDir = DEFAULT_QUEU
   // Save inbound message for debugging
   mkdirSync(DEFAULT_DEBUG_DIR, { recursive: true });
   const ts = Date.now();
-  const event_type = ((body as Record<string, unknown>)?.event_type as string) ?? "unknown";
-  const debugFile = join(DEFAULT_DEBUG_DIR, `${ts}-${event_type.replace(/\./g, "_")}.json`);
+  const type = ((body as Record<string, unknown>)?.type as string) ?? "unknown";
+  const debugFile = join(DEFAULT_DEBUG_DIR, `${ts}-${type.replace(/\./g, "_")}.json`);
   writeFileSync(debugFile, JSON.stringify({ path, body }, null, 2));
 
-  const event = (body as Record<string, unknown>)?.event_type as string | undefined;
+  const eventType = (body as Record<string, unknown>)?.type as string | undefined;
   const messages: unknown[] = [];
 
-  if (event === "hook.UserPromptSubmit") {
+  if (eventType === "hook.UserPromptSubmit") {
     messages.push({
       systemMessage: "[AgentSmith] UserPromptSubmit",
       hookSpecificOutput: {
@@ -179,10 +184,12 @@ export function startProxy(
       const roomMatch = url.pathname.match(/\/rooms\/([^/]+)\//);
       const room = roomMatch?.[1];
 
+      const auth = req.headers.get("Authorization") ?? undefined;
+
       if (mode === "local") {
         forwardLocal(url.pathname, body, queueBaseDir);
       } else {
-        forward(serverUrl, url.pathname, body, queueBaseDir);
+        forward(serverUrl, url.pathname, body, queueBaseDir, auth);
       }
 
       return getResponse(body, room, queueBaseDir);

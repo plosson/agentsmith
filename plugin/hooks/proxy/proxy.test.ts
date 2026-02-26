@@ -165,7 +165,7 @@ describe("proxy server", () => {
     const res = await fetch(`${proxy.url}/api/v1/rooms/test/events`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ event_type: "hook.PreToolUse", payload: {} }),
+      body: JSON.stringify({ type: "hook.PreToolUse", payload: {} }),
     });
     expect(res.status).toBe(200);
   });
@@ -184,14 +184,14 @@ describe("proxy server", () => {
     await fetch(`${proxy.url}/api/v1/rooms/myroom/events`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ event_type: "hook.Stop", payload: {} }),
+      body: JSON.stringify({ type: "hook.Stop", payload: {} }),
     });
     // forward is async/fire-and-forget, give it a moment
     await Bun.sleep(50);
     expect(upstreamRequests.length).toBe(1);
     expect(upstreamRequests[0].path).toBe("/api/v1/rooms/myroom/events");
     expect(upstreamRequests[0].body).toEqual({
-      event_type: "hook.Stop",
+      type: "hook.Stop",
       payload: {},
     });
   });
@@ -244,12 +244,12 @@ describe("forwardLocal", () => {
   const dir = mkdtempSync(join(tmpdir(), "local-test-"));
 
   test("enqueues nothing for non-UserPromptSubmit events", () => {
-    forwardLocal("/api/v1/rooms/room1/events", { event_type: "hook.PreToolUse" }, dir);
+    forwardLocal("/api/v1/rooms/room1/events", { type: "hook.PreToolUse" }, dir);
     expect(dequeueMessage("room1", dir)).toBeNull();
   });
 
   test("enqueues UserPromptSubmit-compatible message", () => {
-    forwardLocal("/api/v1/rooms/room1/events", { event_type: "hook.UserPromptSubmit" }, dir);
+    forwardLocal("/api/v1/rooms/room1/events", { type: "hook.UserPromptSubmit" }, dir);
     const msg = dequeueMessage("room1", dir);
     expect(msg).toEqual({
       systemMessage: "[AgentSmith] UserPromptSubmit",
@@ -261,7 +261,7 @@ describe("forwardLocal", () => {
   });
 
   test("does not enqueue when path has no room", () => {
-    forwardLocal("/test", { event_type: "hook.UserPromptSubmit" }, dir);
+    forwardLocal("/test", { type: "hook.UserPromptSubmit" }, dir);
     // No room extracted, so nothing should be queued anywhere
     expect(readdirSync(dir)).toEqual(["room1"]);
   });
@@ -289,7 +289,7 @@ describe("proxy server (local mode)", () => {
     const res = await fetch(`${proxy.url}/api/v1/rooms/localroom/events`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ event_type: "hook.UserPromptSubmit", payload: {} }),
+      body: JSON.stringify({ type: "hook.UserPromptSubmit", payload: {} }),
     });
     const data = await res.json();
     expect(data).toEqual({
@@ -305,7 +305,7 @@ describe("proxy server (local mode)", () => {
     const res = await fetch(`${proxy.url}/api/v1/rooms/localroom/events`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ event_type: "hook.PreToolUse", payload: {} }),
+      body: JSON.stringify({ type: "hook.PreToolUse", payload: {} }),
     });
     const data = await res.json();
     expect(data).toEqual({ systemMessage: "[AgentSmith] PreToolUse" });
@@ -316,7 +316,7 @@ describe("proxy server (local mode)", () => {
     const res = await fetch(`${proxy.url}/api/v1/rooms/localroom/events`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ event_type: "hook.Stop", payload: {} }),
+      body: JSON.stringify({ type: "hook.Stop", payload: {} }),
     });
     expect(res.status).toBe(200);
   });

@@ -33,6 +33,7 @@ Plugin boots, proxy starts, config is loaded.
        |   AGENTSMITH_CLIENT_URL |                         |
        |   AGENTSMITH_KEY        |                         |
        |   AGENTSMITH_ROOM       |                         |
+       |   AGENTSMITH_USER       |                         |
        |                         |                         |
 ```
 
@@ -51,8 +52,10 @@ Plugin hook fires, event flows to server, no targeted messages waiting.
        |                         |                         |
        |-- POST /rooms/R/events  |                         |
        |   {                     |                         |
-       |     event_type,         |                         |
-       |     sender_session_id,  |                         |
+       |     room_id, type,      |                         |
+       |     format,             |                         |
+       |     sender: {user_id,   |                         |
+       |       session_id},      |                         |
        |     payload             |                         |
        |   }                     |                         |
        |------------------------>|                         |
@@ -63,6 +66,7 @@ Plugin hook fires, event flows to server, no targeted messages waiting.
        |                         |                         |-- validate token
        |                         |                         |-- upsert user
        |                         |                         |-- check room exists
+       |                         |                         |-- validate room_id match
        |                         |                         |-- validate payload size
        |                         |                         |-- auto-join room
        |                         |                         |-- insert event
@@ -92,12 +96,16 @@ next event emit, the server returns the message in the response.
      |                            |                         |                  |
      |-- POST /rooms/R/events --->|                         |                  |
      |   {                        |                         |                  |
-     |     event_type: "interact" |                         |                  |
+     |     room_id, type,         |                         |                  |
+     |     format: "canvas_v1",   |                         |                  |
+     |     sender: {user_id:      |                         |                  |
+     |       "bob@test.com"},     |                         |                  |
+     |     target: {user_id:      |                         |                  |
+     |       "alice@test.com",    |                         |                  |
+     |       session_id:          |                         |                  |
+     |       "sess-1" (optional)  |                         |                  |
+     |     },                     |                         |                  |
      |     payload: {action:"go"} |                         |                  |
-     |     target_user_id:        |                         |                  |
-     |       "alice@test.com"     |                         |                  |
-     |     target_session_id:     |                         |                  |
-     |       "sess-1"  (optional) |                         |                  |
      |   }                        |                         |                  |
      |                            |-- insert event -------->|                  |
      |                            |   (target_user_id set)  |                  |
@@ -109,20 +117,24 @@ next event emit, the server returns the message in the response.
      |                            |                         |                  |
      |                            |<-- POST /rooms/R/events |                  |
      |                            |   {                     |                  |
-     |                            |     event_type:         |                  |
-     |                            |       "session.signal"  |                  |
-     |                            |     sender_session_id:  |                  |
-     |                            |       "sess-1"          |                  |
-     |                            |     payload: {signal}   |                  |
+     |                            |     room_id, type:      |                  |
+     |                            |       "hook.Stop",      |                  |
+     |                            |     format:             |                  |
+     |                            |       "claude_code_v27",|                  |
+     |                            |     sender: {user_id:   |                  |
+     |                            |       "alice@test.com", |                  |
+     |                            |       session_id:       |                  |
+     |                            |       "sess-1"},        |                  |
+     |                            |     payload: {...}      |                  |
      |                            |   }                     |                  |
      |                            |                         |                  |
      |                            |-- insert broadcast      |                  |
      |                            |-- consume targeted:     |                  |
      |                            |   WHERE target_user_id  |                  |
-     |                            |     = "alice@test.com"  |                  |
+     |                            |     = sender.user_id    |                  |
      |                            |   AND (target_session   |                  |
-     |                            |     IS NULL             |                  |
-     |                            |     OR = "sess-1")      |                  |
+     |                            |     IS NULL OR          |                  |
+     |                            |     = sender.session_id)|                  |
      |                            |-- DELETE consumed rows  |                  |
      |                            |                         |                  |
      |                            |-- 201 ----------------->|                  |
@@ -145,11 +157,11 @@ next event emit, the server returns the message in the response.
   +--------------------------+----------------------------+-------------------+
   | Mode                     | Fields Set                 | Who Receives      |
   +--------------------------+----------------------------+-------------------+
-  | Room broadcast           | (none)                     | All via GET poll  |
-  | User broadcast           | target_user_id             | Any session of    |
+  | Room broadcast           | no target                  | All via GET poll  |
+  | User broadcast           | target.user_id             | Any session of    |
   |                          |                            | that user         |
-  | Session-specific         | target_user_id +           | Only that session |
-  |                          | target_session_id          |                   |
+  | Session-specific         | target.user_id +           | Only that session |
+  |                          | target.session_id          |                   |
   +--------------------------+----------------------------+-------------------+
 ```
 
@@ -168,6 +180,7 @@ Canvas polls for broadcast events to render presence and activity.
      |                            |
      |-- GET /rooms/R/events ---->|
      |   ?since=1234&limit=50    |
+     |   &format=canvas_v1       |  (optional transform)
      |                            |
      |                            |-- SELECT * FROM events
      |                            |   WHERE room_id = R
@@ -176,14 +189,17 @@ Canvas polls for broadcast events to render presence and activity.
      |                            |     AND target_user_id IS NULL
      |                            |   ORDER BY created_at ASC
      |                            |   LIMIT 50
+     |                            |-- transform each event
+     |                            |   if ?format specified
      |                            |
      |<-- 200 -------------------|
      |   {                        |
      |     events: [              |
      |       { id, room_id,       |
-     |         sender_user_id,    |
-     |         sender_session_id, |
-     |         event_type,        |
+     |         type, format,      |
+     |         sender: {user_id,  |
+     |           session_id},     |
+     |         target,            |
      |         payload,           |
      |         created_at, ... }  |
      |     ],                     |
@@ -204,12 +220,15 @@ Canvas fetches which sessions are currently active.
      |                            |
      |-- GET /rooms/R/presence -->|
      |                            |
-     |                            |-- SELECT latest session.signal
-     |                            |   per session_id
+     |                            |-- SELECT latest event
+     |                            |   per sender_session_id
      |                            |   WHERE not expired
      |                            |     AND created < 10 min ago
-     |                            |   GROUP BY session_id
+     |                            |     AND type != SessionEnd
+     |                            |   GROUP BY sender_session_id
      |                            |   (MAX rowid per group)
+     |                            |-- derive signal from type
+     |                            |   (Stop→Idle, etc.)
      |                            |
      |<-- 200 -------------------|
      |   {                        |
@@ -278,12 +297,13 @@ All `/api/*` routes require a Bearer token.
   | Concept          | Identifier          | Source                    |
   +------------------+---------------------+---------------------------+
   | User (internal)  | sub (Auth0)         | Token "sub" claim → PK   |
-  | User (on events) | email               | Token "email" claim       |
-  | Session          | sender_session_id   | Extracted from hook JSON  |
+  | User (on events) | email               | sender.user_id in body    |
+  | Session          | sender.session_id   | Extracted from hook JSON  |
   | Room             | ULID                | URL path parameter        |
   +------------------+---------------------+---------------------------+
 ```
 
-Events use **email** as `sender_user_id` and `target_user_id` — stable,
-human-readable, and decoupled from auth provider internals. The `users`
-table uses Auth0 `sub` as its primary key for internal lookups.
+Events use **email** as `sender.user_id` and `target.user_id` — stable,
+human-readable, and decoupled from auth provider internals. Currently
+`sender.user_id` is trusted from the request body (no auth-derived identity
+yet). The `users` table uses Auth0 `sub` as its primary key for internal lookups.

@@ -17,19 +17,22 @@ describe("Presence route", () => {
     return res.json();
   }
 
-  async function emitSignal(
+  async function emitEvent(
     roomId: string,
     sub: string,
     email: string,
     sessionId: string,
-    signal: string,
+    type: string,
   ) {
     return ctx.app.request(`/api/v1/rooms/${roomId}/events`, {
       method: "POST",
       headers: { "Content-Type": "application/json", ...authHeader(sub, email) },
       body: JSON.stringify({
-        event_type: "session.signal",
-        payload: { session_id: sessionId, signal },
+        room_id: roomId,
+        type,
+        format: "claude_code_v27",
+        sender: { user_id: email, session_id: sessionId },
+        payload: {},
       }),
     });
   }
@@ -41,8 +44,8 @@ describe("Presence route", () => {
       ctx = createTestContext();
       const room = await createRoom("test-room", "plugin-1", "alice@test.com");
 
-      await emitSignal(room.id, "plugin-1", "alice@test.com", "sess-1", "Idle");
-      await emitSignal(room.id, "plugin-1", "alice@test.com", "sess-1", "BuildSucceeded");
+      await emitEvent(room.id, "plugin-1", "alice@test.com", "sess-1", "hook.PreToolUse");
+      await emitEvent(room.id, "plugin-1", "alice@test.com", "sess-1", "hook.Stop");
 
       const res = await ctx.app.request(`/api/v1/rooms/${room.id}/presence`, {
         headers: authHeader("web-user-1", "bob@test.com"),
@@ -51,7 +54,7 @@ describe("Presence route", () => {
       const json = await res.json();
       expect(json.sessions).toHaveLength(1);
       expect(json.sessions[0].session_id).toBe("sess-1");
-      expect(json.sessions[0].signal).toBe("BuildSucceeded");
+      expect(json.sessions[0].signal).toBe("Idle");
       expect(json.sessions[0].user_id).toBe("alice@test.com");
       expect(json.sessions[0].display_name).toBeTruthy();
     });
@@ -60,8 +63,8 @@ describe("Presence route", () => {
       ctx = createTestContext();
       const room = await createRoom("test-room", "plugin-1", "alice@test.com");
 
-      await emitSignal(room.id, "plugin-1", "alice@test.com", "sess-1", "Idle");
-      await emitSignal(room.id, "plugin-2", "bob@test.com", "sess-2", "CommandRunning");
+      await emitEvent(room.id, "plugin-1", "alice@test.com", "sess-1", "hook.Stop");
+      await emitEvent(room.id, "plugin-2", "bob@test.com", "sess-2", "hook.PreToolUse");
 
       const res = await ctx.app.request(`/api/v1/rooms/${room.id}/presence`, {
         headers: authHeader("web-user-1", "viewer@test.com"),
@@ -90,15 +93,17 @@ describe("Presence route", () => {
       const now = Date.now();
       ctx.db
         .query(
-          `INSERT INTO events (id, room_id, sender_user_id, event_type, payload, ttl_seconds, created_at, expires_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO events (id, room_id, type, format, sender_user_id, sender_session_id, payload, ttl_seconds, created_at, expires_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         )
         .run(
           "expired-signal-00000000000",
           room.id,
+          "hook.Stop",
+          "claude_code_v27",
           "alice@test.com",
-          "session.signal",
-          JSON.stringify({ session_id: "sess-old", signal: "Idle" }),
+          "sess-old",
+          "{}",
           0,
           now - 700_000,
           now - 100_000,

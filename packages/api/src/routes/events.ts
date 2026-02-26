@@ -11,6 +11,7 @@ import { consumeTargetedEvents, insertEvent, queryEvents } from "../db/events";
 import { addMember } from "../db/rooms";
 import { config } from "../lib/config";
 import { NotFoundError, PayloadTooLargeError, ValidationError } from "../lib/errors";
+import { transformEvent } from "../lib/transform";
 
 export function eventRoutes(db: Database): Hono<AppEnv> {
   const router = new Hono<AppEnv>();
@@ -26,7 +27,11 @@ export function eventRoutes(db: Database): Hono<AppEnv> {
     const body = await c.req.json();
     const parsed = emitEventSchema.safeParse(body);
     if (!parsed.success) {
-      throw new ValidationError("Invalid event: event_type is required");
+      throw new ValidationError("Invalid event: type, format, and sender.user_id are required");
+    }
+
+    if (parsed.data.room_id !== roomId) {
+      throw new ValidationError("room_id in body does not match URL");
     }
 
     const payloadStr = JSON.stringify(parsed.data.payload);
@@ -35,23 +40,31 @@ export function eventRoutes(db: Database): Hono<AppEnv> {
     }
 
     const userId = c.get("userId");
-    const userEmail = c.get("userEmail");
-    const ttlSeconds = TTL_SECONDS[parsed.data.event_type] ?? DEFAULT_TTL_SECONDS;
+    const ttlSeconds = TTL_SECONDS[parsed.data.type] ?? DEFAULT_TTL_SECONDS;
 
     addMember(db, roomId, userId);
 
     const event = insertEvent(db, {
       roomId,
-      senderUserId: userEmail,
-      senderSessionId: parsed.data.sender_session_id,
-      eventType: parsed.data.event_type,
+      type: parsed.data.type,
+      format: parsed.data.format,
+      senderUserId: parsed.data.sender.user_id,
+      senderSessionId: parsed.data.sender.session_id,
       payload: parsed.data.payload,
       ttlSeconds,
-      targetUserId: parsed.data.target_user_id,
-      targetSessionId: parsed.data.target_session_id,
+      targetUserId: parsed.data.target?.user_id,
+      targetSessionId: parsed.data.target?.session_id,
     });
 
-    const targeted = consumeTargetedEvents(db, roomId, userEmail, parsed.data.sender_session_id);
+    const targeted = consumeTargetedEvents(
+      db,
+      roomId,
+      parsed.data.sender.user_id,
+      parsed.data.sender.session_id,
+    );
+
+    const format = c.req.query("format");
+    const messages = targeted.map((e) => transformEvent(e, format).payload);
 
     return c.json(
       {
@@ -59,7 +72,7 @@ export function eventRoutes(db: Database): Hono<AppEnv> {
         room_id: event.room_id,
         created_at: event.created_at,
         expires_at: event.expires_at,
-        messages: targeted.map((e) => e.payload),
+        messages,
       },
       201,
     );
@@ -70,6 +83,7 @@ export function eventRoutes(db: Database): Hono<AppEnv> {
     const query = {
       since: c.req.query("since"),
       limit: c.req.query("limit"),
+      format: c.req.query("format"),
     };
 
     const parsed = pollEventsQuerySchema.safeParse(query);
@@ -78,7 +92,10 @@ export function eventRoutes(db: Database): Hono<AppEnv> {
     }
 
     const result = queryEvents(db, roomId, parsed.data.since, parsed.data.limit);
-    return c.json(result);
+    const format = parsed.data.format;
+    const events = result.events.map((e) => transformEvent(e, format));
+
+    return c.json({ events, latest_ts: result.latest_ts });
   });
 
   return router;

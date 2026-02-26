@@ -14,7 +14,7 @@ agentsmith/                      # Bun monorepo (workspaces in packages/*)
 │   │       ├── index.ts         # Entry point (Bun server)
 │   │       ├── app.ts           # Hono app factory + middleware + routes
 │   │       ├── db/              # SQLite queries (events, rooms, users, migrate)
-│   │       ├── lib/             # Config, errors, cleanup, ULID utils
+│   │       ├── lib/             # Config, errors, cleanup, ULID utils, transform
 │   │       ├── middleware/      # Auth (Auth0 JWT), error handler, logger
 │   │       └── routes/          # events, rooms, presence
 │   └── shared/                  # Shared types & utilities
@@ -50,6 +50,38 @@ Key config variables:
 - `AGENTSMITH_CLIENT_URL` — local proxy URL (written by proxy on startup)
 - `AGENTSMITH_KEY` — auth token
 - `AGENTSMITH_ROOM` — target room name
+- `AGENTSMITH_USER` — user email (used as `sender.user_id` in event envelope)
+
+## Event Envelope
+
+Events use a nested envelope format. The **proxy owns the envelope** (stamps `room_id`, `type`, `format`, `sender`), the **server owns identity + timing** (`id`, `created_at`, `ttl_seconds`, `expires_at`). Raw payloads are stored as-is; consumers request a desired format via `?format=` and the server transforms on read.
+
+```typescript
+// Inbound (POST body from proxy or canvas)
+{
+  room_id: "room-1",
+  type: "hook.UserPromptSubmit",       // CC hook name or "interaction"
+  format: "claude_code_v27",           // source format identifier
+  sender: { user_id: "alice@co", session_id?: "sess-xxx" },
+  target?: { user_id: "bob@co", session_id?: "sess-yyy" },
+  payload: { /* opaque, raw */ }
+}
+
+// Stored & served (server adds these)
+{
+  id: "01ARZ...",           // ULID
+  created_at: 1709...,     // Unix ms
+  ttl_seconds: 300,
+  expires_at: 1709...,
+  // + all inbound fields (sender/target nested in response)
+}
+```
+
+Key design decisions:
+- `sender.user_id` is trusted from the request body (no auth-derived identity yet)
+- TTL is looked up by `type` (see `packages/shared/src/ttl.ts`)
+- Transform-on-read: `packages/api/src/lib/transform.ts` holds a registry of `from:to` format transformers (passthrough when no transformer registered)
+- DB stores flat columns (`sender_user_id`, `sender_session_id`, etc.) but `rowToEvent()` in `packages/api/src/db/events.ts` marshals to the nested `Event` shape
 
 ## Tech Stack
 
@@ -99,7 +131,7 @@ Key concepts:
 - The plugin manifest is at `plugin/.claude-plugin/plugin.json`
 - Hooks are defined in `plugin/hooks/hooks.json`
 - `SessionStart` runs `init.sh` which starts `proxy.ts` in the background (if not running) and loads `~/.config/agentsmith/config` into `$CLAUDE_ENV_FILE`
-- All other hooks run `emit.sh` which wraps the stdin JSON payload and POSTs it to the local proxy via `curl`
+- All other hooks run `emit.sh` which constructs the event envelope (`room_id`, `type`, `format`, `sender`, `payload`) and POSTs it to the local proxy via `curl`
 - Hooks use `"async": true` so they never block Claude Code
 - Test locally by running Claude with the plugin loaded:
 

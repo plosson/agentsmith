@@ -23,9 +23,19 @@ describe("cleanup", () => {
     // Insert already-expired event
     const now = Date.now();
     db.query(
-      `INSERT INTO events (id, room_id, sender_user_id, event_type, payload, ttl_seconds, created_at, expires_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    ).run("expired-cleanup-test-00000", room.id, "user-1", "session.signal", "{}", 0, now, now);
+      `INSERT INTO events (id, room_id, type, format, sender_user_id, payload, ttl_seconds, created_at, expires_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ).run(
+      "expired-cleanup-test-00000",
+      room.id,
+      "hook.Stop",
+      "claude_code_v27",
+      "user-1",
+      "{}",
+      0,
+      now,
+      now,
+    );
 
     const countBefore = db.query("SELECT COUNT(*) AS c FROM events").get() as { c: number };
     expect(countBefore.c).toBe(1);

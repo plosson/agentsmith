@@ -4,9 +4,10 @@ import { generateUlid } from "../lib/ulid";
 
 export interface InsertEventParams {
   roomId: string;
+  type: string;
+  format: string;
   senderUserId: string;
   senderSessionId?: string;
-  eventType: string;
   payload: unknown;
   ttlSeconds: number;
   targetUserId?: string;
@@ -18,13 +19,45 @@ export interface QueryEventsResult {
   latest_ts: number;
 }
 
-type EventRow = Omit<Event, "payload"> & { payload: string };
+type EventRow = {
+  id: string;
+  room_id: string;
+  type: string;
+  format: string;
+  sender_user_id: string;
+  sender_session_id: string | null;
+  target_user_id: string | null;
+  target_session_id: string | null;
+  payload: string;
+  ttl_seconds: number;
+  created_at: number;
+  expires_at: number;
+};
 
-function parseEventRows(rows: EventRow[]): Event[] {
-  return rows.map((row) => ({
-    ...row,
+function buildTarget(
+  userId: string | null | undefined,
+  sessionId: string | null | undefined,
+): Event["target"] {
+  if (!userId) return null;
+  return { user_id: userId, session_id: sessionId ?? null };
+}
+
+function rowToEvent(row: EventRow): Event {
+  return {
+    id: row.id,
+    room_id: row.room_id,
+    type: row.type,
+    format: row.format,
+    sender: {
+      user_id: row.sender_user_id,
+      session_id: row.sender_session_id,
+    },
+    target: buildTarget(row.target_user_id, row.target_session_id),
     payload: JSON.parse(row.payload),
-  }));
+    ttl_seconds: row.ttl_seconds,
+    created_at: row.created_at,
+    expires_at: row.expires_at,
+  };
 }
 
 export function insertEvent(db: Database, params: InsertEventParams): Event {
@@ -34,14 +67,15 @@ export function insertEvent(db: Database, params: InsertEventParams): Event {
   const payloadStr = JSON.stringify(params.payload);
 
   db.query(
-    `INSERT INTO events (id, room_id, sender_user_id, sender_session_id, event_type, payload, ttl_seconds, created_at, expires_at, target_user_id, target_session_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO events (id, room_id, type, format, sender_user_id, sender_session_id, payload, ttl_seconds, created_at, expires_at, target_user_id, target_session_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   ).run(
     id,
     params.roomId,
+    params.type,
+    params.format,
     params.senderUserId,
     params.senderSessionId ?? null,
-    params.eventType,
     payloadStr,
     params.ttlSeconds,
     now,
@@ -53,15 +87,17 @@ export function insertEvent(db: Database, params: InsertEventParams): Event {
   return {
     id,
     room_id: params.roomId,
-    sender_user_id: params.senderUserId,
-    sender_session_id: params.senderSessionId ?? null,
-    event_type: params.eventType,
+    type: params.type,
+    format: params.format,
+    sender: {
+      user_id: params.senderUserId,
+      session_id: params.senderSessionId ?? null,
+    },
+    target: buildTarget(params.targetUserId, params.targetSessionId),
     payload: params.payload,
     ttl_seconds: params.ttlSeconds,
     created_at: now,
     expires_at: expiresAt,
-    target_user_id: params.targetUserId ?? null,
-    target_session_id: params.targetSessionId ?? null,
   };
 }
 
@@ -82,7 +118,7 @@ export function queryEvents(
     )
     .all(roomId, since, now, limit) as EventRow[];
 
-  const events = parseEventRows(rows);
+  const events = rows.map(rowToEvent);
   const latestTs = events.length > 0 ? events[events.length - 1].created_at : since;
 
   return { events, latest_ts: latestTs };
@@ -110,7 +146,7 @@ export function consumeTargetedEvents(
     db.query(`DELETE FROM events WHERE id IN (${placeholders})`).run(...ids);
   }
 
-  return parseEventRows(rows);
+  return rows.map(rowToEvent);
 }
 
 export function deleteExpired(db: Database): number {

@@ -24,17 +24,18 @@ export function migrate(db: Database): void {
     );
 
     CREATE TABLE IF NOT EXISTS events (
-      id               TEXT PRIMARY KEY,
-      room_id          TEXT NOT NULL REFERENCES rooms(id),
-      sender_user_id   TEXT NOT NULL,
+      id                TEXT PRIMARY KEY,
+      room_id           TEXT NOT NULL REFERENCES rooms(id),
+      type              TEXT NOT NULL,
+      format            TEXT NOT NULL,
+      sender_user_id    TEXT NOT NULL,
       sender_session_id TEXT,
-      event_type       TEXT NOT NULL,
-      payload          TEXT NOT NULL,
-      ttl_seconds      INTEGER NOT NULL,
-      created_at       INTEGER NOT NULL,
-      expires_at       INTEGER NOT NULL,
-      target_user_id   TEXT,
-      target_session_id TEXT
+      target_user_id    TEXT,
+      target_session_id TEXT,
+      payload           TEXT NOT NULL,
+      ttl_seconds       INTEGER NOT NULL,
+      created_at        INTEGER NOT NULL,
+      expires_at        INTEGER NOT NULL
     );
 
     CREATE INDEX IF NOT EXISTS idx_events_room_created ON events(room_id, created_at);
