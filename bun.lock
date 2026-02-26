@@ -20,6 +20,14 @@
         "ulid": "^3.0.2",
       },
     },
+    "packages/canvas": {
+      "name": "@agentsmith/canvas",
+      "version": "0.1.0",
+      "dependencies": {
+        "@agentsmith/shared": "workspace:*",
+        "hono": "^4.11.4",
+      },
+    },
     "packages/shared": {
       "name": "@agentsmith/shared",
       "version": "0.1.0",
@@ -30,6 +38,8 @@
   },
   "packages": {
     "@agentsmith/api": ["@agentsmith/api@workspace:packages/api"],
+
+    "@agentsmith/canvas": ["@agentsmith/canvas@workspace:packages/canvas"],
 
     "@agentsmith/shared": ["@agentsmith/shared@workspace:packages/shared"],
 

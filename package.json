@@ -11,9 +11,11 @@
     "test:api": "bun test packages/api",
     "lint": "bunx biome check .",
     "format": "bunx biome format --write .",
-    "typecheck": "bun run typecheck:shared && bun run typecheck:api",
+    "typecheck": "bun run typecheck:shared && bun run typecheck:api && bun run typecheck:canvas",
     "typecheck:shared": "tsc --noEmit -p packages/shared",
-    "typecheck:api": "tsc --noEmit -p packages/api"
+    "typecheck:api": "tsc --noEmit -p packages/api",
+    "typecheck:canvas": "tsc --noEmit -p packages/canvas",
+    "dev:canvas": "bun run --watch packages/canvas/src/index.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "latest",
