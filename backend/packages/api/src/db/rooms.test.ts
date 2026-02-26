@@ -22,9 +22,8 @@ describe("rooms db", () => {
   it("creates a room and returns it", () => {
     setup();
     const room = createRoom(db, "test-room", "user-1");
-    expect(room.name).toBe("test-room");
+    expect(room.id).toBe("test-room");
     expect(room.created_by).toBe("user-1");
-    expect(room.id).toHaveLength(26);
   });
 
   it("throws on duplicate room name", () => {

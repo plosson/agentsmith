@@ -19,13 +19,12 @@ describe("Room routes", () => {
           "Content-Type": "application/json",
           ...authHeader("plugin-user-1", "alice@test.com"),
         },
-        body: JSON.stringify({ name: "my-project" }),
+        body: JSON.stringify({ id: "my-project" }),
       });
       expect(res.status).toBe(201);
       const json = await res.json();
-      expect(json.name).toBe("my-project");
+      expect(json.id).toBe("my-project");
       expect(json.created_by).toBe("plugin-user-1");
-      expect(json.id).toHaveLength(26);
     });
 
     it("returns 400 for invalid room name", async () => {
@@ -36,7 +35,7 @@ describe("Room routes", () => {
           "Content-Type": "application/json",
           ...authHeader("plugin-user-1", "alice@test.com"),
         },
-        body: JSON.stringify({ name: "INVALID NAME!" }),
+        body: JSON.stringify({ id: "INVALID NAME!" }),
       });
       expect(res.status).toBe(400);
     });
@@ -50,12 +49,12 @@ describe("Room routes", () => {
       await ctx.app.request("/api/v1/rooms", {
         method: "POST",
         headers,
-        body: JSON.stringify({ name: "my-project" }),
+        body: JSON.stringify({ id: "my-project" }),
       });
       const res = await ctx.app.request("/api/v1/rooms", {
         method: "POST",
         headers,
-        body: JSON.stringify({ name: "my-project" }),
+        body: JSON.stringify({ id: "my-project" }),
       });
       expect(res.status).toBe(409);
     });
@@ -83,7 +82,7 @@ describe("Room routes", () => {
       await ctx.app.request("/api/v1/rooms", {
         method: "POST",
         headers,
-        body: JSON.stringify({ name: "my-project" }),
+        body: JSON.stringify({ id: "my-project" }),
       });
       const res = await ctx.app.request("/api/v1/rooms", {
         headers: authHeader("web-user-1", "bob@test.com"),
@@ -91,7 +90,7 @@ describe("Room routes", () => {
       expect(res.status).toBe(200);
       const json = await res.json();
       expect(json.rooms).toHaveLength(1);
-      expect(json.rooms[0].name).toBe("my-project");
+      expect(json.rooms[0].id).toBe("my-project");
       expect(json.rooms[0].member_count).toBe(0);
     });
   });
@@ -105,7 +104,7 @@ describe("Room routes", () => {
           "Content-Type": "application/json",
           ...authHeader("plugin-user-1", "alice@test.com"),
         },
-        body: JSON.stringify({ name: "my-project" }),
+        body: JSON.stringify({ id: "my-project" }),
       });
       const room = await createRes.json();
       const res = await ctx.app.request(`/api/v1/rooms/${room.id}`, {
@@ -113,7 +112,7 @@ describe("Room routes", () => {
       });
       expect(res.status).toBe(200);
       const json = await res.json();
-      expect(json.name).toBe("my-project");
+      expect(json.id).toBe("my-project");
       expect(json.members).toBeArray();
     });
 

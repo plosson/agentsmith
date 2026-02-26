@@ -4,6 +4,7 @@ import { cors } from "hono/cors";
 import { config } from "./lib/config";
 import { authMiddleware } from "./middleware/auth";
 import { errorHandler } from "./middleware/error";
+import { requestLogger } from "./middleware/logger";
 import { eventRoutes } from "./routes/events";
 import { presenceRoutes } from "./routes/presence";
 import { roomRoutes } from "./routes/rooms";
@@ -18,6 +19,7 @@ export type AppEnv = {
 export function createApp(db: Database): Hono<AppEnv> {
   const app = new Hono<AppEnv>();
 
+  app.use("*", requestLogger);
   app.use("*", cors());
   app.onError(errorHandler);
 

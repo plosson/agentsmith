@@ -12,7 +12,7 @@ describe("Event routes", () => {
     const res = await ctx.app.request("/api/v1/rooms", {
       method: "POST",
       headers: { "Content-Type": "application/json", ...authHeader(sub, email) },
-      body: JSON.stringify({ name }),
+      body: JSON.stringify({ id: name }),
     });
     return res.json();
   }
@@ -72,7 +72,7 @@ describe("Event routes", () => {
       expect(detail.members[0].user_id).toBe("plugin-1");
     });
 
-    it("returns 404 for non-existent room", async () => {
+    it("auto-creates room if it does not exist", async () => {
       ctx = createTestContext();
       const res = await ctx.app.request("/api/v1/rooms/nonexistent/events", {
         method: "POST",
@@ -82,7 +82,7 @@ describe("Event routes", () => {
         },
         body: JSON.stringify(makeEvent("nonexistent")),
       });
-      expect(res.status).toBe(404);
+      expect(res.status).toBe(201);
     });
 
     it("returns 400 for invalid body (empty type)", async () => {

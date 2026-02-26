@@ -8,9 +8,9 @@ import {
 import { Hono } from "hono";
 import type { AppEnv } from "../app";
 import { consumeTargetedEvents, insertEvent, queryEvents } from "../db/events";
-import { addMember } from "../db/rooms";
+import { addMember, createRoom } from "../db/rooms";
 import { config } from "../lib/config";
-import { NotFoundError, PayloadTooLargeError, ValidationError } from "../lib/errors";
+import { PayloadTooLargeError, ValidationError } from "../lib/errors";
 import { transformEvent } from "../lib/transform";
 
 export function eventRoutes(db: Database): Hono<AppEnv> {
@@ -18,10 +18,11 @@ export function eventRoutes(db: Database): Hono<AppEnv> {
 
   router.post("/rooms/:roomId/events", async (c) => {
     const roomId = c.req.param("roomId");
+    const userId = c.get("userId");
 
     const room = db.query("SELECT id FROM rooms WHERE id = ?").get(roomId);
     if (!room) {
-      throw new NotFoundError("Room");
+      createRoom(db, roomId, userId);
     }
 
     const body = await c.req.json();
@@ -39,7 +40,6 @@ export function eventRoutes(db: Database): Hono<AppEnv> {
       throw new PayloadTooLargeError();
     }
 
-    const userId = c.get("userId");
     const ttlSeconds = TTL_SECONDS[parsed.data.type] ?? DEFAULT_TTL_SECONDS;
 
     addMember(db, roomId, userId);

@@ -203,12 +203,14 @@ export function startProxy(
         const config = resolveConfig(configPath);
         const room = config.AGENTSMITH_ROOM ?? "";
         const clientUrl = config.AGENTSMITH_CLIENT_URL ?? "";
+        const remoteUrl = config.AGENTSMITH_SERVER_URL ?? "";
         const currentMode = config.AGENTSMITH_SERVER_MODE ?? "remote";
+        const urlDisplay = currentMode === "remote" ? `${clientUrl} -> ${remoteUrl}` : `${clientUrl} -> /`;
         const ascii = [
           "",
-          `  █▀█ █▀▀ █▀▀ █▄ █ ▀█▀   █▀ █▀▄▀█ █ ▀█▀ █ █   mode: ${currentMode}`,
-          `  █▀█ █ █ ██▀ █ ▀█  █    ▄█ █ ▀ █ █  █  █▀█   url:  ${clientUrl}`,
-          `  ▀ ▀ ▀▀▀ ▀▀▀ ▀  ▀  ▀    ▀▀ ▀   ▀ ▀  ▀  ▀ ▀   room: ${room}`,
+          `  █▀█ █▀▀ █▀▀ █▄ █ ▀█▀   █▀ █▀▄▀█ █ ▀█▀ █ █   url:  ${urlDisplay}`,
+          `  █▀█ █ █ ██▀ █ ▀█  █    ▄█ █ ▀ █ █  █  █▀█   room: ${room}`,
+          `  ▀ ▀ ▀▀▀ ▀▀▀ ▀  ▀  ▀    ▀▀ ▀   ▀ ▀  ▀  ▀ ▀`,
         ].join("\n");
         return Response.json({ systemMessage: ascii });
       }
@@ -224,6 +226,8 @@ export function startProxy(
       const room = config.AGENTSMITH_ROOM ?? "";
       const envelope = buildEnvelope(body, config);
       const apiPath = `/api/v1/rooms/${room}/events`;
+      const eventType = (envelope.type as string) ?? "unknown";
+      console.log(`[proxy] received ${eventType} for room ${room}`);
       const authKey = config.AGENTSMITH_KEY ?? "";
 
       if (config.AGENTSMITH_DEBUG === "true") {

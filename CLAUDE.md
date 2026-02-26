@@ -1,6 +1,6 @@
 # AgentSmith
 
-Room-scoped event fabric connecting local Claude Code sessions with a shared web canvas.
+Room-scoped event fabric connecting local Claude Code sessions with a shared web frontend.
 Enables ambient presence between developers and bidirectional interactions while enforcing strict privacy (no code/messages/context leakage).
 
 ## Project Structure
@@ -56,13 +56,15 @@ Key config variables:
 - `AGENTSMITH_KEY` — auth token
 - `AGENTSMITH_ROOM` — target room name
 - `AGENTSMITH_USER` — user email (used as `sender.user_id` in event envelope)
+- `AGENTSMITH_SERVER_MODE` — `remote` (default) or `local` (disk queue, no server)
+- `AGENTSMITH_DEBUG` — set to `true` to write debug JSON files to `~/.config/agentsmith/debug/`
 
 ## Event Envelope
 
 Events use a nested envelope format. The **proxy owns the envelope** (stamps `room_id`, `type`, `format`, `sender`), the **server owns identity + timing** (`id`, `created_at`, `ttl_seconds`, `expires_at`). Raw payloads are stored as-is; consumers request a desired format via `?format=` and the server transforms on read.
 
 ```typescript
-// Inbound (POST body from proxy or canvas)
+// Inbound (POST body from proxy or frontend)
 {
   room_id: "room-1",
   type: "hook.UserPromptSubmit",       // CC hook name or "interaction"
@@ -138,7 +140,7 @@ The plugin lives in `plugin/` (top-level) and follows the Claude Code plugin spe
 Key concepts:
 - The plugin manifest is at `plugin/.claude-plugin/plugin.json`
 - Hooks are defined in `plugin/hooks/hooks.json`
-- `SessionStart` runs `init.sh` which starts `proxy.ts` in the background (if not running) and loads `~/.config/agentsmith/config` into `$CLAUDE_ENV_FILE`
+- `SessionStart` runs `init.sh` which starts `proxy.ts` in the background (if not running), loads `~/.config/agentsmith/config` into `$CLAUDE_ENV_FILE`, and calls `GET /health` on the proxy to display session info
 - All other hooks run `emit.sh` which constructs the event envelope (`room_id`, `type`, `format`, `sender`, `payload`) and POSTs it to the local proxy via `curl`
 - Hooks use `"async": true` so they never block Claude Code
 - Test locally by running Claude with the plugin loaded:

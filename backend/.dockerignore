@@ -4,4 +4,3 @@
 !tsconfig.json
 !packages/shared/
 !packages/api/
-!packages/canvas/

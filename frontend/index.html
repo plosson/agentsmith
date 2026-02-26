@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AgentSmith Canvas</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Fira+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Geist', 'system-ui', 'sans-serif'],
+            mono: ['Fira Mono', 'monospace'],
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="font-sans bg-gray-900 text-gray-100 min-h-screen">
+  <header class="border-b border-gray-800 bg-gray-900 px-6 py-4">
+    <div class="flex items-center gap-3">
+      <a href="#/" class="text-lg font-semibold tracking-tight text-gray-100">AgentSmith</a>
+      <span class="text-sm text-gray-500">Canvas</span>
+    </div>
+  </header>
+  <main id="app" class="max-w-5xl mx-auto px-6 py-8"></main>
+  <script src="app.js"></script>
+</body>
+</html>

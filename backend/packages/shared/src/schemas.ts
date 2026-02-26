@@ -3,7 +3,7 @@ import { z } from "zod/v4";
 export const roomNameSchema = z.string().regex(/^[a-z0-9-]{2,48}$/);
 
 export const createRoomSchema = z.object({
-  name: roomNameSchema,
+  id: roomNameSchema,
 });
 
 const eventParticipantSchema = z.object({

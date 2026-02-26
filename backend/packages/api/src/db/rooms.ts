@@ -1,23 +1,20 @@
 import type { Database } from "bun:sqlite";
 import type { Room, RoomListItem, RoomMember, RoomWithMembers } from "@agentsmith/shared";
-import { generateUlid } from "../lib/ulid";
 
-export function createRoom(db: Database, name: string, createdBy: string): Room {
-  const id = generateUlid();
+export function createRoom(db: Database, id: string, createdBy: string): Room {
   const now = Date.now();
-  db.query("INSERT INTO rooms (id, name, created_by, created_at) VALUES (?, ?, ?, ?)").run(
+  db.query("INSERT INTO rooms (id, created_by, created_at) VALUES (?, ?, ?)").run(
     id,
-    name,
     createdBy,
     now,
   );
-  return { id, name, created_by: createdBy, created_at: now };
+  return { id, created_by: createdBy, created_at: now };
 }
 
 export function listRooms(db: Database): RoomListItem[] {
   return db
     .query(
-      `SELECT r.id, r.name, r.created_by, r.created_at,
+      `SELECT r.id, r.created_by, r.created_at,
               COUNT(rm.user_id) AS member_count
        FROM rooms r
        LEFT JOIN room_members rm ON rm.room_id = r.id

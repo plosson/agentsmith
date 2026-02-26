@@ -11,7 +11,6 @@ export function migrate(db: Database): void {
 
     CREATE TABLE IF NOT EXISTS rooms (
       id          TEXT PRIMARY KEY,
-      name        TEXT NOT NULL UNIQUE,
       created_by  TEXT NOT NULL REFERENCES users(id),
       created_at  INTEGER NOT NULL
     );

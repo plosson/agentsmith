@@ -17,17 +17,17 @@ export function roomRoutes(db: Database): Hono<AppEnv> {
     const body = await c.req.json();
     const parsed = createRoomSchema.safeParse(body);
     if (!parsed.success) {
-      throw new ValidationError("Invalid room name: must match ^[a-z0-9-]{2,48}$");
+      throw new ValidationError("Invalid room id: must match ^[a-z0-9-]{2,48}$");
     }
 
     const userId = c.get("userId");
 
     try {
-      const room = createRoom(db, parsed.data.name, userId);
+      const room = createRoom(db, parsed.data.id, userId);
       return c.json(room, 201);
     } catch (err: unknown) {
       if (err instanceof Error && err.message?.includes("UNIQUE constraint")) {
-        throw new ConflictError(`Room name '${parsed.data.name}' already exists`);
+        throw new ConflictError(`Room '${parsed.data.id}' already exists`);
       }
       throw err;
     }

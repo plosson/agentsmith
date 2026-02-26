@@ -35,6 +35,10 @@ Plugin boots, proxy starts, config is loaded.
        |   AGENTSMITH_ROOM       |                         |
        |   AGENTSMITH_USER       |                         |
        |                         |                         |
+       |-- GET /health --------->|                         |
+       |<-- {systemMessage} -----|                         |
+       |   (mode, url, room)     |                         |
+       |                         |                         |
 ```
 
 ---

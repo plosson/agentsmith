@@ -12,7 +12,7 @@ describe("Presence route", () => {
     const res = await ctx.app.request("/api/v1/rooms", {
       method: "POST",
       headers: { "Content-Type": "application/json", ...authHeader(sub, email) },
-      body: JSON.stringify({ name }),
+      body: JSON.stringify({ id: name }),
     });
     return res.json();
   }
