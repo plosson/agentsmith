@@ -130,14 +130,19 @@ export async function forward(
 
 const DEFAULT_DEBUG_DIR = join(process.env.HOME ?? "~", ".config", "agentsmith", "debug");
 
-export function forwardLocal(path: string, body: unknown, baseDir = DEFAULT_QUEUE_BASE): void {
-  // Save inbound message for debugging
-  mkdirSync(DEFAULT_DEBUG_DIR, { recursive: true });
+export function debugLog(
+  path: string,
+  body: unknown,
+  debugDir = DEFAULT_DEBUG_DIR,
+): void {
+  mkdirSync(debugDir, { recursive: true });
   const ts = Date.now();
   const type = ((body as Record<string, unknown>)?.type as string) ?? "unknown";
-  const debugFile = join(DEFAULT_DEBUG_DIR, `${ts}-${type.replace(/\./g, "_")}.json`);
+  const debugFile = join(debugDir, `${ts}-${type.replace(/\./g, "_")}.json`);
   writeFileSync(debugFile, JSON.stringify({ path, body }, null, 2));
+}
 
+export function forwardLocal(path: string, body: unknown, baseDir = DEFAULT_QUEUE_BASE): void {
   const eventType = (body as Record<string, unknown>)?.type as string | undefined;
   const messages: unknown[] = [];
 
@@ -193,6 +198,21 @@ export function startProxy(
     port: 0,
     async fetch(req) {
       const url = new URL(req.url);
+
+      if (url.pathname === "/health") {
+        const config = resolveConfig(configPath);
+        const room = config.AGENTSMITH_ROOM ?? "";
+        const clientUrl = config.AGENTSMITH_CLIENT_URL ?? "";
+        const currentMode = config.AGENTSMITH_SERVER_MODE ?? "remote";
+        const ascii = [
+          "",
+          `  █▀█ █▀▀ █▀▀ █▄ █ ▀█▀   █▀ █▀▄▀█ █ ▀█▀ █ █   mode: ${currentMode}`,
+          `  █▀█ █ █ ██▀ █ ▀█  █    ▄█ █ ▀ █ █  █  █▀█   url:  ${clientUrl}`,
+          `  ▀ ▀ ▀▀▀ ▀▀▀ ▀  ▀  ▀    ▀▀ ▀   ▀ ▀  ▀  ▀ ▀   room: ${room}`,
+        ].join("\n");
+        return Response.json({ systemMessage: ascii });
+      }
+
       let body: unknown;
       try {
         body = await req.json();
@@ -205,6 +225,10 @@ export function startProxy(
       const envelope = buildEnvelope(body, config);
       const apiPath = `/api/v1/rooms/${room}/events`;
       const authKey = config.AGENTSMITH_KEY ?? "";
+
+      if (config.AGENTSMITH_DEBUG === "true") {
+        debugLog(apiPath, envelope);
+      }
 
       if (mode === "local") {
         forwardLocal(apiPath, envelope, queueBaseDir);

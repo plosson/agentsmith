@@ -18,7 +18,7 @@ Claude Code → plugin hooks → local proxy → API server → shared room
 
 ### Prerequisites
 
-- [Claude Code](https://docs.anthropic.com/en/docs/claude-code) (v1.0.33+)
+- [Claude Code](https://docs.anthropic.com/en/docs/claude-code) (v2.1.34+)
 - [Bun](https://bun.sh/) runtime (required by the local proxy)
 
 ### From the marketplace

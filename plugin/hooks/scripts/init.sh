@@ -36,11 +36,7 @@ if [ -f "$LOCAL_CONFIG" ]; then
   done < "$LOCAL_CONFIG"
 fi
 
-# Display session info (per-project > env > global)
+# Read CLIENT_URL from config (proxy writes it on startup)
 . "$CONFIG"
 [ -f "$LOCAL_CONFIG" ] && . "$LOCAL_CONFIG"
-ROOM="${AGENTSMITH_ROOM}"
-CLIENT_URL="${AGENTSMITH_CLIENT_URL}"
-MODE="${AGENTSMITH_SERVER_MODE}"
-MODE="${MODE:-remote}"
-echo "{\"systemMessage\": \"AgentSmith proxy running — room: $ROOM | client: $CLIENT_URL | mode: $MODE\"}"
+curl -s --max-time 2 "$AGENTSMITH_CLIENT_URL/health"

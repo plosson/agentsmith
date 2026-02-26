@@ -42,7 +42,9 @@ export const Layout: FC<LayoutProps> = ({ title, children }) => (
     <body class="font-sans bg-gray-50 text-gray-900 min-h-screen">
       <header class="border-b border-gray-200 bg-white px-6 py-4">
         <div class="flex items-center gap-3">
-          <a href="/" class="text-lg font-semibold tracking-tight">AgentSmith</a>
+          <a href="/" class="text-lg font-semibold tracking-tight">
+            AgentSmith
+          </a>
           <span class="text-sm text-gray-400">Canvas</span>
         </div>
       </header>

@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
   buildEnvelope,
+  debugLog,
   dequeueMessage,
   enqueueMessages,
   forwardLocal,
@@ -195,6 +196,14 @@ describe("proxy server", () => {
     expect(config.AGENTSMITH_CLIENT_URL).toBe(proxy.url);
   });
 
+  test("health endpoint returns systemMessage JSON", async () => {
+    const res = await fetch(`${proxy.url}/health`);
+    expect(res.status).toBe(200);
+    const json = (await res.json()) as { systemMessage?: string };
+    expect(typeof json.systemMessage).toBe("string");
+    expect(json.systemMessage!.length).toBeGreaterThan(0);
+  });
+
   test("returns 200 for valid JSON POST", async () => {
     const res = await fetch(`${proxy.url}/api/v1/rooms/myroom/events`, {
       method: "POST",
@@ -271,6 +280,28 @@ describe("message queue", () => {
 
   test("dequeueMessage returns null when queue is empty", () => {
     expect(dequeueMessage("myroom", dir)).toBeNull();
+  });
+});
+
+// --- debugLog tests ---
+
+describe("debugLog", () => {
+  const dir = mkdtempSync(join(tmpdir(), "debug-test-"));
+
+  test("writes debug file with path and body", () => {
+    debugLog("/api/v1/rooms/r1/events", { type: "hook.Stop", payload: {} }, dir);
+    const files = readdirSync(dir);
+    expect(files.length).toBe(1);
+    expect(files[0]).toMatch(/^\d+-hook_Stop\.json$/);
+    const content = JSON.parse(readFileSync(join(dir, files[0]), "utf-8"));
+    expect(content.path).toBe("/api/v1/rooms/r1/events");
+    expect(content.body.type).toBe("hook.Stop");
+  });
+
+  test("defaults type to unknown when missing", () => {
+    debugLog("/test", {}, dir);
+    const files = readdirSync(dir).sort();
+    expect(files[files.length - 1]).toMatch(/^\d+-unknown\.json$/);
   });
 });
 

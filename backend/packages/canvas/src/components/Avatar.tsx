@@ -10,7 +10,13 @@ type AvatarProps = {
   sessionIndex?: number;
 };
 
-export const Avatar: FC<AvatarProps> = ({ userId, displayName, sessionId, signal, sessionIndex }) => {
+export const Avatar: FC<AvatarProps> = ({
+  userId,
+  displayName,
+  sessionId,
+  signal,
+  sessionIndex,
+}) => {
   const color = getAvatarColor(userId);
   const initials = getInitials(displayName);
 

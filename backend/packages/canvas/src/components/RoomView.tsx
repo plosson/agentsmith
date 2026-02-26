@@ -18,7 +18,9 @@ type RoomViewProps = {
 export const RoomView: FC<RoomViewProps> = ({ roomId, roomName, sessions }) => (
   <div>
     <div class="flex items-center gap-3 mb-6">
-      <a href="/" class="text-gray-400 hover:text-gray-600 text-sm">&larr; Rooms</a>
+      <a href="/" class="text-gray-400 hover:text-gray-600 text-sm">
+        &larr; Rooms
+      </a>
       <h1 class="text-xl font-semibold font-mono">{roomName}</h1>
     </div>
 

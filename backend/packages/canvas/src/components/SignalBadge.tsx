@@ -7,10 +7,7 @@ export const SignalBadge: FC<{ signal: string }> = ({ signal }) => {
 
   return (
     <div class="flex items-center gap-1.5">
-      <span
-        class="inline-block w-2 h-2 rounded-full"
-        style={`background-color: ${color}`}
-      />
+      <span class="inline-block w-2 h-2 rounded-full" style={`background-color: ${color}`} />
       <span class="text-xs text-gray-500">{label}</span>
     </div>
   );
