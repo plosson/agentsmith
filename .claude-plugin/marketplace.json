@@ -1,0 +1,17 @@
+{
+  "name": "agentsmith-marketplace",
+  "owner": {
+    "name": "Agent Smith"
+  },
+  "metadata": {
+    "description": "Room-scoped event fabric connecting local Claude Code sessions with a shared web canvas"
+  },
+  "plugins": [
+    {
+      "name": "agentsmith",
+      "source": "./plugin",
+      "description": "Collaborative awareness for Claude Code sessions — ambient presence, room-scoped events, and bidirectional interactions",
+      "version": "0.1.0"
+    }
+  ]
+}
