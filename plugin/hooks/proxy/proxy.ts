@@ -123,7 +123,16 @@ export async function forward(
   }
 }
 
+const DEFAULT_DEBUG_DIR = join(process.env.HOME ?? "~", ".config", "agentsmith", "debug");
+
 export function forwardLocal(path: string, body: unknown, baseDir = DEFAULT_QUEUE_BASE): void {
+  // Save inbound message for debugging
+  mkdirSync(DEFAULT_DEBUG_DIR, { recursive: true });
+  const ts = Date.now();
+  const event_type = ((body as Record<string, unknown>)?.event_type as string) ?? "unknown";
+  const debugFile = join(DEFAULT_DEBUG_DIR, `${ts}-${event_type.replace(/\./g, "_")}.json`);
+  writeFileSync(debugFile, JSON.stringify({ path, body }, null, 2));
+
   const event = (body as Record<string, unknown>)?.event_type as string | undefined;
   const messages: unknown[] = [];
 

@@ -5,6 +5,9 @@ if [ -z "$AGENTSMITH_KEY" ]; then
   [ -f "$CONFIG" ] && . "$CONFIG"
 fi
 [ -z "$AGENTSMITH_KEY" ] && exit 0
+# Per-project config overrides
+LOCAL_CONFIG=".claude/agentsmith/config"
+[ -f "$LOCAL_CONFIG" ] && . "$LOCAL_CONFIG"
 PAYLOAD=$(cat)
 printf '{"event_type":"%s","payload":%s}' "$EVENT_TYPE" "$PAYLOAD" \
   | curl -s --max-time 2 -X POST \
