@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { Layout } from "../components/Layout";
 import { RoomList } from "../components/RoomList";
+import { RoomView } from "../components/RoomView";
 import { api } from "../lib/api-client";
 
 export const pages = new Hono();
@@ -23,6 +24,22 @@ pages.get("/", async (c) => {
       <div id="room-list">
         <RoomList rooms={rooms} />
       </div>
+    </Layout>,
+  );
+});
+
+pages.get("/rooms/:roomId", async (c) => {
+  const roomId = c.req.param("roomId");
+  const { sessions } = await api.getRoomPresence(roomId);
+
+  // Fetch room name (we need it for display)
+  const { rooms } = await api.listRooms();
+  const room = rooms.find((r) => r.id === roomId);
+  const roomName = room?.name ?? roomId;
+
+  return c.html(
+    <Layout title={roomName}>
+      <RoomView roomId={roomId} roomName={roomName} sessions={sessions} />
     </Layout>,
   );
 });
