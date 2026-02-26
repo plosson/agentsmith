@@ -58,6 +58,17 @@ else
 fi
 
 echo ""
+echo "=== ROOM ==="
+LOCAL_CONFIG=".claude/agentsmith/config"
+DEFAULT_ROOM=$(grep '^AGENTSMITH_ROOM=' "$CONFIG" 2>/dev/null | cut -d= -f2)
+OVERRIDE_ROOM=$(grep '^AGENTSMITH_ROOM=' "$LOCAL_CONFIG" 2>/dev/null | cut -d= -f2)
+if [ -n "$OVERRIDE_ROOM" ]; then
+  echo "$OVERRIDE_ROOM (project override, default: ${DEFAULT_ROOM:-<not set>})"
+else
+  echo "${DEFAULT_ROOM:-<not set>} (default)"
+fi
+
+echo ""
 echo "=== CONNECTIVITY ==="
 CLIENT_URL="${AGENTSMITH_CLIENT_URL}"
 if [ -z "$CLIENT_URL" ] && [ -f "$CONFIG" ]; then
@@ -79,6 +90,7 @@ fi
 
 - Config: found or missing, which keys are set (mask the AGENTSMITH_KEY value)
 - Proxy: running (with PID) or not running
+- Room: active room name and whether it's a project override or default
 - Connectivity: reachable or not
 - Mode: "remote" if AGENTSMITH_SERVER_URL is set, "local" if empty/missing
 
