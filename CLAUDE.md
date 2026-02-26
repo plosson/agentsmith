@@ -9,6 +9,7 @@ Enables ambient presence between developers and bidirectional interactions while
 agentsmith/                      # Bun monorepo (workspaces in packages/*)
 ├── packages/
 │   ├── api/                     # REST API server (Hono + SQLite)
+│   │   ├── Dockerfile           # Multi-stage build for server deployment
 │   │   └── src/
 │   │       ├── index.ts         # Entry point (Bun server)
 │   │       ├── app.ts           # Hono app factory + middleware + routes
@@ -30,7 +31,7 @@ agentsmith/                      # Bun monorepo (workspaces in packages/*)
 ├── docs/
 │   ├── specs/                   # PRD, TRD, API guidelines, plugin specs
 │   └── plans/                   # Implementation plans
-└── docker/Dockerfile            # Multi-stage build for server deployment
+└── .dockerignore
 ```
 
 ## Architecture
@@ -86,6 +87,7 @@ bun run typecheck             # TypeScript check (all packages)
 - **Biome** for formatting (2-space indent, 100-char lines) and linting — run `bun run format` before committing
 - **Error handling** — use `AppError` subclasses from `packages/api/src/lib/errors.ts`
 - **Privacy first** — never transmit code, messages, or context through the event fabric
+- **Zero broken windows** — if you encounter pre-existing errors (typecheck, lint, test failures), fix them; never leave them for later
 
 ## Plugin Development
 

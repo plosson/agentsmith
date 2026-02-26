@@ -1,7 +1,10 @@
 import { Database } from "bun:sqlite";
 import { afterEach, describe, expect, it } from "bun:test";
 import { Hono } from "hono";
+import type { AppEnv } from "../app";
+import { createApp } from "../app";
 import { migrate } from "../db/migrate";
+import { config } from "../lib/config";
 import { authHeader } from "../test-utils";
 import { authMiddleware } from "./auth";
 import { errorHandler } from "./error";
@@ -17,7 +20,7 @@ describe("auth middleware", () => {
     db = new Database(":memory:");
     db.exec("PRAGMA foreign_keys = ON");
     migrate(db);
-    const app = new Hono();
+    const app = new Hono<AppEnv>();
     app.onError(errorHandler);
     app.use("*", authMiddleware(db));
     app.get("/test", (c) => {
@@ -63,5 +66,43 @@ describe("auth middleware", () => {
     } | null;
     expect(row).toBeTruthy();
     expect(row?.email).toBe("alice@test.com");
+  });
+});
+
+describe("auth disabled", () => {
+  let db: Database;
+  const originalAuthDisabled = config.authDisabled;
+
+  afterEach(() => {
+    config.authDisabled = originalAuthDisabled;
+    db?.close();
+  });
+
+  it("allows unauthenticated requests when AUTH_DISABLED is true", async () => {
+    config.authDisabled = true;
+    db = new Database(":memory:");
+    db.exec("PRAGMA foreign_keys = ON");
+    migrate(db);
+
+    const app = createApp(db);
+    const res = await app.request("/api/v1/rooms");
+    expect(res.status).toBe(200);
+  });
+
+  it("sets anonymous user context when AUTH_DISABLED is true", async () => {
+    config.authDisabled = true;
+    db = new Database(":memory:");
+    db.exec("PRAGMA foreign_keys = ON");
+    migrate(db);
+
+    const app = createApp(db);
+    await app.request("/api/v1/rooms");
+
+    const row = db.query("SELECT * FROM users WHERE id = ?").get("anonymous") as {
+      id: string;
+      email: string;
+    } | null;
+    expect(row).toBeTruthy();
+    expect(row?.email).toBe("anonymous@local");
   });
 });

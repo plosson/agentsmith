@@ -1,6 +1,7 @@
 export const config = {
   port: Number.parseInt(process.env.PORT || "3000", 10),
   databasePath: process.env.DATABASE_PATH || "./data/agentsmith.db",
+  authDisabled: process.env.AUTH_DISABLED === "true",
   auth0: {
     domain: process.env.AUTH0_DOMAIN || "",
     audience: process.env.AUTH0_AUDIENCE || "",
