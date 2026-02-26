@@ -58,8 +58,10 @@ describe("auth middleware", () => {
     await app.request("/test", {
       headers: authHeader("user-1", "alice@test.com"),
     });
-    const row = db.query("SELECT * FROM users WHERE id = ?").get("user-1") as any;
+    const row = db.query("SELECT * FROM users WHERE id = ?").get("user-1") as {
+      email: string;
+    } | null;
     expect(row).toBeTruthy();
-    expect(row.email).toBe("alice@test.com");
+    expect(row?.email).toBe("alice@test.com");
   });
 });

@@ -24,8 +24,8 @@ export function roomRoutes(db: Database): Hono {
     try {
       const room = createRoom(db, parsed.data.name, userId);
       return c.json(room, 201);
-    } catch (err: any) {
-      if (err.message?.includes("UNIQUE constraint")) {
+    } catch (err: unknown) {
+      if (err instanceof Error && err.message?.includes("UNIQUE constraint")) {
         throw new ConflictError(`Room name '${parsed.data.name}' already exists`);
       }
       throw err;

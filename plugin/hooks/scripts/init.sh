@@ -20,12 +20,16 @@ start_proxy
 # Wait briefly for proxy to write AGENTSMITH_CLIENT_URL to config
 sleep 0.2
 
-# Load config into Claude env
+# Load config into Claude env (env vars override file values)
 while IFS='=' read -r key value; do
   [[ "$key" =~ ^#.*$ || -z "$key" ]] && continue
-  echo "${key}=${value}" >> "$CLAUDE_ENV_FILE"
+  env_val="${!key}"
+  echo "${key}=${env_val-$value}" >> "$CLAUDE_ENV_FILE"
 done < "$CONFIG"
 
-# Display session info
-ROOM=$(grep '^AGENTSMITH_ROOM=' "$CONFIG" | cut -d= -f2)
-echo "{\"systemMessage\": \"AgentSmith proxy running — room: $ROOM\"}"
+# Display session info (env vars override config values)
+ROOM="${AGENTSMITH_ROOM:-$(grep '^AGENTSMITH_ROOM=' "$CONFIG" | cut -d= -f2)}"
+CLIENT_URL="${AGENTSMITH_CLIENT_URL:-$(grep '^AGENTSMITH_CLIENT_URL=' "$CONFIG" | cut -d= -f2)}"
+MODE="${AGENTSMITH_SERVER_MODE:-$(grep '^AGENTSMITH_SERVER_MODE=' "$CONFIG" | cut -d= -f2)}"
+MODE="${MODE:-remote}"
+echo "{\"systemMessage\": \"AgentSmith proxy running — room: $ROOM | client: $CLIENT_URL | mode: $MODE\"}"

@@ -11,5 +11,10 @@ export function getUserById(
   db: Database,
   id: string,
 ): { id: string; email: string; display_name: string | null; created_at: number } | null {
-  return db.query("SELECT * FROM users WHERE id = ?").get(id) as any;
+  return db.query("SELECT * FROM users WHERE id = ?").get(id) as {
+    id: string;
+    email: string;
+    display_name: string | null;
+    created_at: number;
+  } | null;
 }

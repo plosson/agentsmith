@@ -1,8 +1,19 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { type ProxyServer, readConfig, startProxy, updateConfigKey, writeConfig } from "./proxy";
+import { join } from "node:path";
+import {
+  dequeueMessage,
+  enqueueMessages,
+  forwardLocal,
+  getQueueDir,
+  type ProxyServer,
+  readConfig,
+  resolveConfig,
+  startProxy,
+  updateConfigKey,
+  writeConfig,
+} from "./proxy";
 
 // --- config helpers tests ---
 
@@ -49,11 +60,73 @@ describe("config", () => {
   });
 });
 
-// --- proxy server tests ---
+// --- resolveConfig tests ---
+
+describe("resolveConfig", () => {
+  const dir = mkdtempSync(join(tmpdir(), "proxy-test-resolve-"));
+  const configPath = join(dir, "config");
+
+  test("env vars override config file values", () => {
+    writeFileSync(configPath, "AGENTSMITH_SERVER_URL=http://from-file\nAGENTSMITH_ROOM=file-room\n");
+    const saved = process.env.AGENTSMITH_SERVER_URL;
+    try {
+      process.env.AGENTSMITH_SERVER_URL = "http://from-env";
+      const config = resolveConfig(configPath);
+      expect(config.AGENTSMITH_SERVER_URL).toBe("http://from-env");
+      expect(config.AGENTSMITH_ROOM).toBe("file-room");
+    } finally {
+      if (saved === undefined) delete process.env.AGENTSMITH_SERVER_URL;
+      else process.env.AGENTSMITH_SERVER_URL = saved;
+    }
+  });
+
+  test("env vars add keys not in config file", () => {
+    writeFileSync(configPath, "AGENTSMITH_ROOM=my-room\n");
+    const saved = process.env.AGENTSMITH_KEY;
+    try {
+      process.env.AGENTSMITH_KEY = "secret-key";
+      const config = resolveConfig(configPath);
+      expect(config.AGENTSMITH_ROOM).toBe("my-room");
+      expect(config.AGENTSMITH_KEY).toBe("secret-key");
+    } finally {
+      if (saved === undefined) delete process.env.AGENTSMITH_KEY;
+      else process.env.AGENTSMITH_KEY = saved;
+    }
+  });
+
+  test("file values used when no env var set", () => {
+    writeFileSync(configPath, "AGENTSMITH_ROOM=from-file\n");
+    const saved = process.env.AGENTSMITH_ROOM;
+    try {
+      delete process.env.AGENTSMITH_ROOM;
+      const config = resolveConfig(configPath);
+      expect(config.AGENTSMITH_ROOM).toBe("from-file");
+    } finally {
+      if (saved === undefined) delete process.env.AGENTSMITH_ROOM;
+      else process.env.AGENTSMITH_ROOM = saved;
+    }
+  });
+
+  test("env var AGENTSMITH_SERVER_MODE overrides config", () => {
+    writeFileSync(configPath, "AGENTSMITH_SERVER_MODE=remote\n");
+    const saved = process.env.AGENTSMITH_SERVER_MODE;
+    try {
+      process.env.AGENTSMITH_SERVER_MODE = "local";
+      const config = resolveConfig(configPath);
+      expect(config.AGENTSMITH_SERVER_MODE).toBe("local");
+    } finally {
+      if (saved === undefined) delete process.env.AGENTSMITH_SERVER_MODE;
+      else process.env.AGENTSMITH_SERVER_MODE = saved;
+    }
+  });
+});
+
+// --- proxy server tests (remote mode) ---
 
 describe("proxy server", () => {
   const dir = mkdtempSync(join(tmpdir(), "proxy-test-"));
   const configPath = join(dir, "config");
+  const queueBaseDir = join(dir, "queue");
 
   let proxy: ProxyServer;
   let upstream: ReturnType<typeof Bun.serve>;
@@ -67,12 +140,12 @@ describe("proxy server", () => {
         const url = new URL(req.url);
         const body = await req.json();
         upstreamRequests.push({ path: url.pathname, body });
-        return new Response("ok");
+        return Response.json({ success: true });
       },
     });
 
     writeFileSync(configPath, `AGENTSMITH_SERVER_URL=http://localhost:${upstream.port}\n`);
-    proxy = startProxy(`http://localhost:${upstream.port}`, configPath);
+    proxy = startProxy("remote", `http://localhost:${upstream.port}`, configPath, queueBaseDir);
   });
 
   afterAll(() => {
@@ -89,13 +162,13 @@ describe("proxy server", () => {
     const res = await fetch(`${proxy.url}/api/v1/rooms/test/events`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ event_type: "test", payload: {} }),
+      body: JSON.stringify({ event_type: "hook.PreToolUse", payload: {} }),
     });
     expect(res.status).toBe(200);
   });
 
   test("returns 400 for invalid JSON", async () => {
-    const res = await fetch(`${proxy.url}/test`, {
+    const res = await fetch(`${proxy.url}/api/v1/rooms/test/events`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: "not json",
@@ -108,35 +181,140 @@ describe("proxy server", () => {
     await fetch(`${proxy.url}/api/v1/rooms/myroom/events`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ event_type: "session.signal", payload: { signal: "Idle" } }),
+      body: JSON.stringify({ event_type: "hook.Stop", payload: {} }),
     });
     // forward is async/fire-and-forget, give it a moment
     await Bun.sleep(50);
     expect(upstreamRequests.length).toBe(1);
     expect(upstreamRequests[0].path).toBe("/api/v1/rooms/myroom/events");
-    expect(upstreamRequests[0].body).toEqual({ event_type: "session.signal", payload: { signal: "Idle" } });
+    expect(upstreamRequests[0].body).toEqual({
+      event_type: "hook.Stop",
+      payload: {},
+    });
+  });
+});
+
+// --- message queue tests ---
+
+describe("message queue", () => {
+  const dir = mkdtempSync(join(tmpdir(), "queue-test-"));
+
+  test("getQueueDir creates directory if it does not exist", () => {
+    const queueDir = getQueueDir("myroom", dir);
+    expect(queueDir).toBe(join(dir, "myroom"));
+    // Directory should exist (no error reading it)
+    expect(readdirSync(queueDir)).toEqual([]);
   });
 
-  test("returns hook-specific output for UserPromptSubmit", async () => {
-    const res = await fetch(`${proxy.url}/test`, {
+  test("enqueueMessages writes N files to queue dir", () => {
+    enqueueMessages("myroom", [{ a: 1 }, { b: 2 }, { c: 3 }], dir);
+    const files = readdirSync(join(dir, "myroom")).sort();
+    expect(files.length).toBe(3);
+    for (const f of files) {
+      expect(f).toMatch(/^\d+-\d+\.json$/);
+    }
+  });
+
+  test("dequeueMessage returns oldest message first (FIFO)", () => {
+    const msg = dequeueMessage("myroom", dir);
+    expect(msg).toEqual({ a: 1 });
+  });
+
+  test("dequeueMessage deletes file after reading", () => {
+    const files = readdirSync(join(dir, "myroom"));
+    expect(files.length).toBe(2);
+  });
+
+  test("dequeueMessage drains remaining messages in order", () => {
+    expect(dequeueMessage("myroom", dir)).toEqual({ b: 2 });
+    expect(dequeueMessage("myroom", dir)).toEqual({ c: 3 });
+  });
+
+  test("dequeueMessage returns null when queue is empty", () => {
+    expect(dequeueMessage("myroom", dir)).toBeNull();
+  });
+});
+
+// --- forwardLocal tests ---
+
+describe("forwardLocal", () => {
+  const dir = mkdtempSync(join(tmpdir(), "local-test-"));
+
+  test("enqueues nothing for non-UserPromptSubmit events", () => {
+    forwardLocal("/api/v1/rooms/room1/events", { event_type: "hook.PreToolUse" }, dir);
+    expect(dequeueMessage("room1", dir)).toBeNull();
+  });
+
+  test("enqueues UserPromptSubmit-compatible message", () => {
+    forwardLocal("/api/v1/rooms/room1/events", { event_type: "hook.UserPromptSubmit" }, dir);
+    const msg = dequeueMessage("room1", dir);
+    expect(msg).toEqual({
+      systemMessage: "[AgentSmith] UserPromptSubmit",
+      hookSpecificOutput: {
+        hookEventName: "UserPromptSubmit",
+        additionalContext: "End your response with FIVE emojis at least.",
+      },
+    });
+  });
+
+  test("does not enqueue when path has no room", () => {
+    forwardLocal("/test", { event_type: "hook.UserPromptSubmit" }, dir);
+    // No room extracted, so nothing should be queued anywhere
+    expect(readdirSync(dir)).toEqual(["room1"]);
+  });
+});
+
+// --- local mode proxy server tests ---
+
+describe("proxy server (local mode)", () => {
+  const dir = mkdtempSync(join(tmpdir(), "proxy-local-test-"));
+  const configPath = join(dir, "config");
+  const queueBaseDir = join(dir, "queue");
+
+  let proxy: ProxyServer;
+
+  beforeAll(() => {
+    writeFileSync(configPath, "AGENTSMITH_SERVER_MODE=local\n");
+    proxy = startProxy("local", "", configPath, queueBaseDir);
+  });
+
+  afterAll(() => {
+    proxy.server.stop();
+  });
+
+  test("returns queued UserPromptSubmit response in local mode", async () => {
+    const res = await fetch(`${proxy.url}/api/v1/rooms/localroom/events`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ event_type: "hook.UserPromptSubmit", payload: {} }),
     });
     const data = await res.json();
-    expect(data.hookSpecificOutput).toEqual({
-      hookEventName: "UserPromptSubmit",
-      additionalContext: "End your response with an emoji.",
+    expect(data).toEqual({
+      systemMessage: "[AgentSmith] UserPromptSubmit",
+      hookSpecificOutput: {
+        hookEventName: "UserPromptSubmit",
+        additionalContext: "End your response with FIVE emojis at least.",
+      },
     });
   });
 
-  test("returns empty JSON for other event types", async () => {
-    const res = await fetch(`${proxy.url}/test`, {
+  test("returns default systemMessage for other events in local mode", async () => {
+    const res = await fetch(`${proxy.url}/api/v1/rooms/localroom/events`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ event_type: "session.signal", payload: {} }),
+      body: JSON.stringify({ event_type: "hook.PreToolUse", payload: {} }),
     });
     const data = await res.json();
-    expect(data).toEqual({});
+    expect(data).toEqual({ systemMessage: "[AgentSmith] PreToolUse" });
+  });
+
+  test("does not contact any upstream server", async () => {
+    // This would throw/fail if it tried to fetch an empty serverUrl
+    const res = await fetch(`${proxy.url}/api/v1/rooms/localroom/events`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ event_type: "hook.Stop", payload: {} }),
+    });
+    expect(res.status).toBe(200);
   });
 });
