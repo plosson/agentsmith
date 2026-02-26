@@ -23,7 +23,31 @@ export function drawFloor(scene) {
 function drawTileDetail(gfx, t, x, y, r, c) {
   const hash = (r * 31 + c * 17) & 0xFFFF;
 
-  if (t === 1) {
+  if (t === 2) {
+    // Pool water — stone edge where adjacent tile is not water
+    const isWater = (rr, cc) =>
+      rr >= 0 && rr < ROWS && cc >= 0 && cc < COLS && MAP[rr][cc] === 2;
+    const edgeW = 4;
+    // Stone rim
+    gfx.fillStyle(0x9090a8);
+    if (!isWater(r-1, c)) gfx.fillRect(x, y, T, edgeW);
+    if (!isWater(r+1, c)) gfx.fillRect(x, y+T-edgeW, T, edgeW);
+    if (!isWater(r, c-1)) gfx.fillRect(x, y, edgeW, T);
+    if (!isWater(r, c+1)) gfx.fillRect(x+T-edgeW, y, edgeW, T);
+    // Inner water
+    const ex = isWater(r, c-1) ? 0 : edgeW;
+    const ey = isWater(r-1, c) ? 0 : edgeW;
+    const ew = T - ex - (isWater(r, c+1) ? 0 : edgeW);
+    const eh = T - ey - (isWater(r+1, c) ? 0 : edgeW);
+    gfx.fillStyle(0x4898d0);
+    gfx.fillRect(x+ex, y+ey, ew, eh);
+    // Corner accents
+    gfx.fillStyle(0xa0a0b8);
+    if (!isWater(r-1, c) && !isWater(r, c-1)) gfx.fillRect(x, y, edgeW+1, edgeW+1);
+    if (!isWater(r-1, c) && !isWater(r, c+1)) gfx.fillRect(x+T-edgeW-1, y, edgeW+1, edgeW+1);
+    if (!isWater(r+1, c) && !isWater(r, c-1)) gfx.fillRect(x, y+T-edgeW-1, edgeW+1, edgeW+1);
+    if (!isWater(r+1, c) && !isWater(r, c+1)) gfx.fillRect(x+T-edgeW-1, y+T-edgeW-1, edgeW+1, edgeW+1);
+  } else if (t === 1) {
     gfx.fillStyle(0x706050);
     gfx.fillRect(x, y + T - 1, T, 1);
     gfx.fillRect(x + T/2, y, 1, T);

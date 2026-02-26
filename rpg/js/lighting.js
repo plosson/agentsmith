@@ -50,6 +50,14 @@ export function drawLighting(lightCtx) {
         lightCtx.fillStyle = grad;
         lightCtx.fillRect(fx - 45, fy - 45, 90, 90);
       }
+      if (MAP[r][c] === 2) {
+        const fx = c * T + T/2, fy = r * T + T/2;
+        const grad = lightCtx.createRadialGradient(fx, fy, 0, fx, fy, 35);
+        grad.addColorStop(0, 'rgba(100,180,240,0.18)');
+        grad.addColorStop(1, 'rgba(0,0,0,0)');
+        lightCtx.fillStyle = grad;
+        lightCtx.fillRect(fx - 35, fy - 35, 70, 70);
+      }
     }
   }
 

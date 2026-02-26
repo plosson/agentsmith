@@ -72,6 +72,15 @@ export function spawnParticles(particles) {
           size: 1.5, type: 'water',
         });
       }
+      // Pool ripple sparkles
+      if (MAP[r][c] === 2 && Math.random() < 0.02) {
+        particles.push({
+          x: c*T + 6 + Math.random()*(T-12), y: r*T + 6 + Math.random()*(T-12),
+          vx: 0, vy: 0,
+          life: 0.6 + Math.random()*0.8, maxLife: 0.6 + Math.random()*0.8,
+          size: 1 + Math.random(), type: 'pool',
+        });
+      }
     }
   }
 }
@@ -119,6 +128,10 @@ export function drawParticles(gfx, particles) {
       gfx.fillRect(p.x, p.y, p.size, p.size);
     } else if (p.type === 'water') {
       gfx.fillStyle(Phaser.Display.Color.GetColor(140, 200, 255), alpha * 0.6);
+      gfx.fillRect(p.x, p.y, p.size, p.size);
+    } else if (p.type === 'pool') {
+      const pulse = 0.5 + Math.sin(tick * 0.06 + p.x + p.y) * 0.3;
+      gfx.fillStyle(Phaser.Display.Color.GetColor(180, 230, 255), alpha * pulse);
       gfx.fillRect(p.x, p.y, p.size, p.size);
     }
   }

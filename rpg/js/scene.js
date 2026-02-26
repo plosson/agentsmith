@@ -72,15 +72,35 @@ export class TavernScene extends Phaser.Scene {
     this.waterGfx.clear();
     for (let r = 0; r < ROWS; r++) {
       for (let c = 0; c < COLS; c++) {
-        if (MAP[r][c] !== 14) continue;
+        const tile = MAP[r][c];
+        if (tile !== 14 && tile !== 2) continue;
         const x = c*T, y = r*T;
-        const color = (r+c)%2===0 ? 0x60a0d8 : 0x5898d0;
-        this.waterGfx.fillStyle(color);
-        this.waterGfx.fillRect(x+6, y+6, T-12, T-12);
-        const shimmerAlpha = 0.2 + Math.sin(tick*0.04+c+r)*0.15;
-        this.waterGfx.fillStyle(0xb4e6ff, shimmerAlpha);
-        const wy = y+8 + Math.sin(tick*0.03 + c*2)*4;
-        this.waterGfx.fillRect(x+8, wy, T-16, 2);
+        if (tile === 14) {
+          const color = (r+c)%2===0 ? 0x60a0d8 : 0x5898d0;
+          this.waterGfx.fillStyle(color);
+          this.waterGfx.fillRect(x+6, y+6, T-12, T-12);
+          const shimmerAlpha = 0.2 + Math.sin(tick*0.04+c+r)*0.15;
+          this.waterGfx.fillStyle(0xb4e6ff, shimmerAlpha);
+          const wy = y+8 + Math.sin(tick*0.03 + c*2)*4;
+          this.waterGfx.fillRect(x+8, wy, T-16, 2);
+        } else {
+          // Pool water — animated surface within stone edges
+          const isW = (rr, cc) =>
+            rr >= 0 && rr < ROWS && cc >= 0 && cc < COLS && MAP[rr][cc] === 2;
+          const ew = 4;
+          const ex = isW(r, c-1) ? 0 : ew;
+          const ey = isW(r-1, c) ? 0 : ew;
+          const iw = T - ex - (isW(r, c+1) ? 0 : ew);
+          const ih = T - ey - (isW(r+1, c) ? 0 : ew);
+          const color = (r+c)%2===0 ? 0x5898d0 : 0x5090c0;
+          this.waterGfx.fillStyle(color);
+          this.waterGfx.fillRect(x+ex, y+ey, iw, ih);
+          // Shimmer ripples
+          const shimmerAlpha = 0.15 + Math.sin(tick*0.03+c*1.5+r)*0.12;
+          this.waterGfx.fillStyle(0xb4e6ff, shimmerAlpha);
+          const wy = y+ey+2 + Math.sin(tick*0.025 + c*2.5 + r*0.7)*3;
+          this.waterGfx.fillRect(x+ex+2, wy, iw-4, 2);
+        }
       }
     }
   }
