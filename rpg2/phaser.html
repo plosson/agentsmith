@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Gilded Flagon - Phaser 3</title>
+<script src="https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #c8d8c0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    font-family: 'Press Start 2P', monospace;
+    overflow: hidden;
+  }
+  #game-wrapper {
+    position: relative;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+  }
+  canvas {
+    display: block;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+  }
+  #light-canvas {
+    position: absolute;
+    top: 0; left: 0;
+    pointer-events: none;
+    mix-blend-mode: multiply;
+    z-index: 10;
+  }
+  #hud {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 36px;
+    background: linear-gradient(180deg, rgba(60,50,40,0.85) 0%, rgba(60,50,40,0.5) 80%, transparent 100%);
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+    pointer-events: none;
+    z-index: 1000;
+  }
+  .hud-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-right: 20px;
+  }
+  .hud-icon { font-size: 12px; }
+  .hud-text { font-size: 7px; color: #ccc; }
+  .hud-val { font-size: 8px; color: #f0c050; }
+  .hp-bar {
+    width: 60px; height: 6px;
+    background: #2a1a1a;
+    border: 1px solid #4a2a2a;
+  }
+  .hp-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #c03030, #e05050);
+    width: 75%;
+  }
+  .mp-bar {
+    width: 60px; height: 6px;
+    background: #1a1a2a;
+    border: 1px solid #2a2a4a;
+  }
+  .mp-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #3030c0, #5050e0);
+    width: 60%;
+  }
+  #controls {
+    position: absolute;
+    bottom: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 6px;
+    color: rgba(80,70,60,0.5);
+    pointer-events: none;
+    z-index: 1000;
+  }
+</style>
+</head>
+<body>
+<div id="game-wrapper">
+  <div id="phaser-game"></div>
+  <canvas id="light-canvas"></canvas>
+  <div id="hud">
+    <div class="hud-item">
+      <span class="hud-icon">&#9876;</span>
+      <span class="hud-text">Valen</span>
+    </div>
+    <div class="hud-item">
+      <span class="hud-text">HP</span>
+      <div class="hp-bar"><div class="hp-fill"></div></div>
+    </div>
+    <div class="hud-item">
+      <span class="hud-text">MP</span>
+      <div class="mp-bar"><div class="mp-fill"></div></div>
+    </div>
+    <div class="hud-item" style="margin-left:auto">
+      <span class="hud-icon">&#9775;</span>
+      <span class="hud-val">142</span>
+      <span class="hud-text">gold</span>
+    </div>
+  </div>
+  <div id="controls">ARROWS move &middot; SPACE interact</div>
+</div>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
