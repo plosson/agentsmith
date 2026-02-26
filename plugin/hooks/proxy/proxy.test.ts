@@ -67,7 +67,10 @@ describe("resolveConfig", () => {
   const configPath = join(dir, "config");
 
   test("env vars override config file values", () => {
-    writeFileSync(configPath, "AGENTSMITH_SERVER_URL=http://from-file\nAGENTSMITH_ROOM=file-room\n");
+    writeFileSync(
+      configPath,
+      "AGENTSMITH_SERVER_URL=http://from-file\nAGENTSMITH_ROOM=file-room\n",
+    );
     const saved = process.env.AGENTSMITH_SERVER_URL;
     try {
       process.env.AGENTSMITH_SERVER_URL = "http://from-env";

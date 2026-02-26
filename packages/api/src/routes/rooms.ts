@@ -1,11 +1,12 @@
 import type { Database } from "bun:sqlite";
 import { createRoomSchema } from "@agentsmith/shared";
 import { Hono } from "hono";
+import type { AppEnv } from "../app";
 import { createRoom, getRoomWithMembers, listRooms } from "../db/rooms";
 import { ConflictError, NotFoundError, ValidationError } from "../lib/errors";
 
-export function roomRoutes(db: Database): Hono {
-  const router = new Hono();
+export function roomRoutes(db: Database): Hono<AppEnv> {
+  const router = new Hono<AppEnv>();
 
   router.get("/rooms", (c) => {
     const rooms = listRooms(db);
@@ -19,7 +20,7 @@ export function roomRoutes(db: Database): Hono {
       throw new ValidationError("Invalid room name: must match ^[a-z0-9-]{2,48}$");
     }
 
-    const userId = c.get("userId") as string;
+    const userId = c.get("userId");
 
     try {
       const room = createRoom(db, parsed.data.name, userId);

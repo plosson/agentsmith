@@ -6,18 +6,18 @@ import {
   TTL_SECONDS,
 } from "@agentsmith/shared";
 import { Hono } from "hono";
-import { insertEvent, queryEvents } from "../db/events";
+import type { AppEnv } from "../app";
+import { consumeTargetedEvents, insertEvent, queryEvents } from "../db/events";
 import { addMember } from "../db/rooms";
 import { config } from "../lib/config";
 import { NotFoundError, PayloadTooLargeError, ValidationError } from "../lib/errors";
 
-export function eventRoutes(db: Database): Hono {
-  const router = new Hono();
+export function eventRoutes(db: Database): Hono<AppEnv> {
+  const router = new Hono<AppEnv>();
 
   router.post("/rooms/:roomId/events", async (c) => {
     const roomId = c.req.param("roomId");
 
-    // Check room exists
     const room = db.query("SELECT id FROM rooms WHERE id = ?").get(roomId);
     if (!room) {
       throw new NotFoundError("Room");
@@ -29,25 +29,29 @@ export function eventRoutes(db: Database): Hono {
       throw new ValidationError("Invalid event: event_type is required");
     }
 
-    // Check payload size
     const payloadStr = JSON.stringify(parsed.data.payload);
     if (payloadStr.length > config.payloadMaxBytes) {
       throw new PayloadTooLargeError();
     }
 
-    const userId = c.get("userId") as string;
+    const userId = c.get("userId");
+    const userEmail = c.get("userEmail");
     const ttlSeconds = TTL_SECONDS[parsed.data.event_type] ?? DEFAULT_TTL_SECONDS;
 
-    // Auto-join room
     addMember(db, roomId, userId);
 
     const event = insertEvent(db, {
       roomId,
-      senderId: userId,
+      senderUserId: userEmail,
+      senderSessionId: parsed.data.sender_session_id,
       eventType: parsed.data.event_type,
       payload: parsed.data.payload,
       ttlSeconds,
+      targetUserId: parsed.data.target_user_id,
+      targetSessionId: parsed.data.target_session_id,
     });
+
+    const targeted = consumeTargetedEvents(db, roomId, userEmail, parsed.data.sender_session_id);
 
     return c.json(
       {
@@ -55,6 +59,7 @@ export function eventRoutes(db: Database): Hono {
         room_id: event.room_id,
         created_at: event.created_at,
         expires_at: event.expires_at,
+        messages: targeted.map((e) => e.payload),
       },
       201,
     );

@@ -23,7 +23,7 @@ describe("cleanup", () => {
     // Insert already-expired event
     const now = Date.now();
     db.query(
-      `INSERT INTO events (id, room_id, sender_id, event_type, payload, ttl_seconds, created_at, expires_at)
+      `INSERT INTO events (id, room_id, sender_user_id, event_type, payload, ttl_seconds, created_at, expires_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
     ).run("expired-cleanup-test-00000", room.id, "user-1", "session.signal", "{}", 0, now, now);
 

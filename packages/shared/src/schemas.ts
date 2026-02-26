@@ -9,6 +9,9 @@ export const createRoomSchema = z.object({
 export const emitEventSchema = z.object({
   event_type: z.string().min(1),
   payload: z.unknown(),
+  sender_session_id: z.string().min(1).optional(),
+  target_user_id: z.string().min(1).optional(),
+  target_session_id: z.string().min(1).optional(),
 });
 
 export const pollEventsQuerySchema = z.object({

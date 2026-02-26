@@ -1,6 +1,8 @@
 import type { Database } from "bun:sqlite";
 import { Hono } from "hono";
 
+const PRESENCE_WINDOW_MS = 10 * 60 * 1000;
+
 interface PresenceSession {
   user_id: string;
   display_name: string;
@@ -15,19 +17,17 @@ export function presenceRoutes(db: Database): Hono {
   router.get("/rooms/:roomId/presence", (c) => {
     const roomId = c.req.param("roomId");
     const now = Date.now();
-    const tenMinAgo = now - 10 * 60 * 1000;
+    const cutoff = now - PRESENCE_WINDOW_MS;
 
-    // Get latest session.signal per session_id, within last 10 minutes and not expired.
-    // Uses a subquery with MAX(rowid) to find the most recently inserted event
-    // per session_id, since rowid is monotonically increasing with insertion order.
+    // MAX(rowid) subquery finds the most recently inserted event per session_id,
+    // since SQLite rowid is monotonically increasing with insertion order.
     const rows = db
       .query(
-        `SELECT e.sender_id AS user_id, u.email AS display_name,
+        `SELECT e.sender_user_id AS user_id, e.sender_user_id AS display_name,
                 json_extract(e.payload, '$.session_id') AS session_id,
                 json_extract(e.payload, '$.signal') AS signal,
                 e.created_at AS updated_at
          FROM events e
-         JOIN users u ON u.id = e.sender_id
          WHERE e.room_id = ?
            AND e.event_type = 'session.signal'
            AND e.expires_at > ?
@@ -43,7 +43,7 @@ export function presenceRoutes(db: Database): Hono {
            )
          ORDER BY updated_at DESC`,
       )
-      .all(roomId, now, tenMinAgo, now, tenMinAgo) as PresenceSession[];
+      .all(roomId, now, cutoff, now, cutoff) as PresenceSession[];
 
     return c.json({ sessions: rows });
   });

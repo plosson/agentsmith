@@ -52,7 +52,7 @@ describe("Presence route", () => {
       expect(json.sessions).toHaveLength(1);
       expect(json.sessions[0].session_id).toBe("sess-1");
       expect(json.sessions[0].signal).toBe("BuildSucceeded");
-      expect(json.sessions[0].user_id).toBe("plugin-1");
+      expect(json.sessions[0].user_id).toBe("alice@test.com");
       expect(json.sessions[0].display_name).toBeTruthy();
     });
 
@@ -90,13 +90,13 @@ describe("Presence route", () => {
       const now = Date.now();
       ctx.db
         .query(
-          `INSERT INTO events (id, room_id, sender_id, event_type, payload, ttl_seconds, created_at, expires_at)
+          `INSERT INTO events (id, room_id, sender_user_id, event_type, payload, ttl_seconds, created_at, expires_at)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
         )
         .run(
           "expired-signal-00000000000",
           room.id,
-          "plugin-1",
+          "alice@test.com",
           "session.signal",
           JSON.stringify({ session_id: "sess-old", signal: "Idle" }),
           0,
