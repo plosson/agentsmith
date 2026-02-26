@@ -15,7 +15,7 @@
     "typecheck:shared": "tsc --noEmit -p packages/shared",
     "typecheck:api": "tsc --noEmit -p packages/api",
     "typecheck:canvas": "tsc --noEmit -p packages/canvas",
-    "dev:canvas": "bun run --watch packages/canvas/src/index.ts"
+    "dev:canvas": "cd packages/canvas && bun run --watch src/index.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "latest",
