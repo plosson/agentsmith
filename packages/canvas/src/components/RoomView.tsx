@@ -27,7 +27,7 @@ export const RoomView: FC<RoomViewProps> = ({ roomId, roomName, sessions }) => (
       <div
         id="presence-grid"
         hx-get={`/partials/rooms/${roomId}/presence`}
-        hx-trigger="every 3s"
+        hx-trigger="load, every 3s"
         hx-swap="innerHTML"
       >
         <SessionGrid sessions={sessions} />

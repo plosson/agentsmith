@@ -23,7 +23,7 @@ export const Avatar: FC<AvatarProps> = ({ userId, displayName, sessionId, signal
         >
           {initials}
         </div>
-        {sessionIndex !== undefined && sessionIndex > 0 && (
+        {sessionIndex !== undefined && (
           <span class="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-white border border-gray-300 text-[10px] font-medium flex items-center justify-center text-gray-600">
             {sessionIndex + 1}
           </span>
