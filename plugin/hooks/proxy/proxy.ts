@@ -20,11 +20,17 @@ export function readConfig(configPath = DEFAULT_CONFIG_PATH): Record<string, str
   return entries;
 }
 
-export function resolveConfig(configPath = DEFAULT_CONFIG_PATH): Record<string, string> {
+export function resolveConfig(
+  configPath = DEFAULT_CONFIG_PATH,
+  localConfigPath?: string,
+): Record<string, string> {
   const config = readConfig(configPath);
-  for (const key of Object.keys(process.env)) {
-    if (key.startsWith("AGENTSMITH_")) {
-      config[key] = process.env[key] ?? "";
+  // Overlay per-project config (same logic as env.sh)
+  const localPath = localConfigPath ?? process.env.AGENTSMITH_LOCAL_CONFIG;
+  if (localPath) {
+    const local = readConfig(localPath);
+    for (const [k, v] of Object.entries(local)) {
+      config[k] = v;
     }
   }
   return config;

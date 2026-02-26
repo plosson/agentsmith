@@ -98,60 +98,45 @@ describe("resolveConfig", () => {
   const dir = mkdtempSync(join(tmpdir(), "proxy-test-resolve-"));
   const configPath = join(dir, "config");
 
-  test("env vars override config file values", () => {
+  test("returns values from global config", () => {
+    writeFileSync(configPath, "AGENTSMITH_ROOM=from-file\n");
+    const config = resolveConfig(configPath);
+    expect(config.AGENTSMITH_ROOM).toBe("from-file");
+  });
+
+  test("local config overrides global config values", () => {
+    const localPath = join(dir, "local-config");
     writeFileSync(
       configPath,
-      "AGENTSMITH_SERVER_URL=http://from-file\nAGENTSMITH_ROOM=file-room\n",
+      "AGENTSMITH_SERVER_URL=http://from-global\nAGENTSMITH_ROOM=global-room\n",
     );
-    const saved = process.env.AGENTSMITH_SERVER_URL;
-    try {
-      process.env.AGENTSMITH_SERVER_URL = "http://from-env";
-      const config = resolveConfig(configPath);
-      expect(config.AGENTSMITH_SERVER_URL).toBe("http://from-env");
-      expect(config.AGENTSMITH_ROOM).toBe("file-room");
-    } finally {
-      if (saved === undefined) delete process.env.AGENTSMITH_SERVER_URL;
-      else process.env.AGENTSMITH_SERVER_URL = saved;
-    }
+    writeFileSync(localPath, "AGENTSMITH_SERVER_URL=http://from-local\n");
+    const config = resolveConfig(configPath, localPath);
+    expect(config.AGENTSMITH_SERVER_URL).toBe("http://from-local");
+    expect(config.AGENTSMITH_ROOM).toBe("global-room");
   });
 
-  test("env vars add keys not in config file", () => {
+  test("local config adds keys not in global config", () => {
+    const localPath = join(dir, "local-config-add");
     writeFileSync(configPath, "AGENTSMITH_ROOM=my-room\n");
-    const saved = process.env.AGENTSMITH_KEY;
-    try {
-      process.env.AGENTSMITH_KEY = "secret-key";
-      const config = resolveConfig(configPath);
-      expect(config.AGENTSMITH_ROOM).toBe("my-room");
-      expect(config.AGENTSMITH_KEY).toBe("secret-key");
-    } finally {
-      if (saved === undefined) delete process.env.AGENTSMITH_KEY;
-      else process.env.AGENTSMITH_KEY = saved;
-    }
+    writeFileSync(localPath, "AGENTSMITH_DEBUG=true\n");
+    const config = resolveConfig(configPath, localPath);
+    expect(config.AGENTSMITH_ROOM).toBe("my-room");
+    expect(config.AGENTSMITH_DEBUG).toBe("true");
   });
 
-  test("file values used when no env var set", () => {
-    writeFileSync(configPath, "AGENTSMITH_ROOM=from-file\n");
-    const saved = process.env.AGENTSMITH_ROOM;
-    try {
-      delete process.env.AGENTSMITH_ROOM;
-      const config = resolveConfig(configPath);
-      expect(config.AGENTSMITH_ROOM).toBe("from-file");
-    } finally {
-      if (saved === undefined) delete process.env.AGENTSMITH_ROOM;
-      else process.env.AGENTSMITH_ROOM = saved;
-    }
-  });
-
-  test("env var AGENTSMITH_SERVER_MODE overrides config", () => {
+  test("reads local config from AGENTSMITH_LOCAL_CONFIG env var", () => {
+    const localPath = join(dir, "local-config-env");
     writeFileSync(configPath, "AGENTSMITH_SERVER_MODE=remote\n");
-    const saved = process.env.AGENTSMITH_SERVER_MODE;
+    writeFileSync(localPath, "AGENTSMITH_SERVER_MODE=local\n");
+    const saved = process.env.AGENTSMITH_LOCAL_CONFIG;
     try {
-      process.env.AGENTSMITH_SERVER_MODE = "local";
+      process.env.AGENTSMITH_LOCAL_CONFIG = localPath;
       const config = resolveConfig(configPath);
       expect(config.AGENTSMITH_SERVER_MODE).toBe("local");
     } finally {
-      if (saved === undefined) delete process.env.AGENTSMITH_SERVER_MODE;
-      else process.env.AGENTSMITH_SERVER_MODE = saved;
+      if (saved === undefined) delete process.env.AGENTSMITH_LOCAL_CONFIG;
+      else process.env.AGENTSMITH_LOCAL_CONFIG = saved;
     }
   });
 });
@@ -173,6 +158,9 @@ describe("proxy server", () => {
       port: 0,
       async fetch(req) {
         const url = new URL(req.url);
+        if (url.pathname === "/health") {
+          return Response.json({ uptime_seconds: 42, auth: "none" });
+        }
         const body = await req.json();
         upstreamRequests.push({ path: url.pathname, body });
         return Response.json({ success: true });

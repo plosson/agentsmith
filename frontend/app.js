@@ -1,7 +1,7 @@
 // ---------------------------------------------------------------------------
 // Config
 // ---------------------------------------------------------------------------
-const API_BASE = 'http://localhost:6001/api/v1';
+const API_BASE = 'https://agentsmith-api.axel.siteio.me/api/v1';
 const POLL_INTERVAL = 3000;
 
 const DEV_TOKEN = btoa(JSON.stringify({ sub: 'canvas-dev|1', email: 'dev@canvas.local' }));
