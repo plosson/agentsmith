@@ -43,7 +43,7 @@ lsof -ti :"$WEB_PORT" | xargs kill 2>/dev/null || true
 echo "==> Starting API server on port $API_PORT..."
 
 echo "    Building Docker image..."
-docker build -t agentsmith-api -f "$SCRIPT_DIR/backend/packages/api/Dockerfile" "$SCRIPT_DIR/backend" --quiet
+docker build -t agentsmith-api -f "$SCRIPT_DIR/backend/Dockerfile" "$SCRIPT_DIR/backend" --quiet
 
 echo "    Starting container..."
 if [ "$CLEAN" = true ]; then
