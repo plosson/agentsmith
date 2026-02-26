@@ -8,7 +8,7 @@
   @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
-    background: #0a0a14;
+    background: #c8d8c0;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -67,7 +67,7 @@
     position: absolute;
     top: 0; left: 0; right: 0;
     height: 36px;
-    background: linear-gradient(180deg, rgba(10,10,20,0.95) 0%, rgba(10,10,20,0.7) 80%, transparent 100%);
+    background: linear-gradient(180deg, rgba(60,50,40,0.85) 0%, rgba(60,50,40,0.5) 80%, transparent 100%);
     display: flex;
     align-items: center;
     padding: 0 12px;
@@ -123,7 +123,7 @@
     left: 50%;
     transform: translateX(-50%);
     font-size: 6px;
-    color: rgba(200,200,220,0.4);
+    color: rgba(80,70,60,0.5);
     pointer-events: none;
     z-index: 1000;
   }
@@ -235,22 +235,22 @@ const fxCtx = fxCvs.getContext('2d');
 
 // ── Color palettes ──────────────────────────────────────
 const FLOOR_PAL = [
-  ['#3e3852','#38334c'],  // 0 stone
-  ['#252030','#201c2a'],  // 1 wall
-  ['#2a4a7a','#264474'],  // 2 water
-  ['#2b5a1a','#265214'],  // 3 grass
-  ['#7a6a4a','#716244'],  // 4 path
-  ['#6a2828','#622020'],  // 5 rug
-  ['#5a3818','#523214'],  // 6 bar/counter
-  ['#4a3828','#443222'],  // 7 barrel
-  ['#5a4828','#544224'],  // 8 door
-  ['#2a2240','#24203a'],  // 9 bookshelf
-  ['#4a2010','#44180c'],  // 10 fireplace
-  ['#4a3828','#443222'],  // 11 chair
-  ['#2b5a1a','#265214'],  // 12 flowers (base=grass)
-  ['#2b5a1a','#265214'],  // 13 tree (base=grass)
-  ['#2a4a7a','#264474'],  // 14 fountain (base=water)
-  ['#3e3852','#38334c'],  // 15 torch_wall (base=stone)
+  ['#c8b8a0','#c0b098'],  // 0 stone
+  ['#8a7a68','#807060'],  // 1 wall
+  ['#5090c0','#4888b8'],  // 2 water
+  ['#58a838','#50a030'],  // 3 grass
+  ['#d8c898','#d0c090'],  // 4 path
+  ['#b84040','#b03838'],  // 5 rug
+  ['#a07030','#986828'],  // 6 bar/counter
+  ['#8a7050','#827048'],  // 7 barrel
+  ['#a08848','#988040'],  // 8 door
+  ['#6a5840','#625038'],  // 9 bookshelf
+  ['#7a5040','#724838'],  // 10 fireplace
+  ['#8a7050','#827048'],  // 11 chair
+  ['#58a838','#50a030'],  // 12 flowers (base=grass)
+  ['#58a838','#50a030'],  // 13 tree (base=grass)
+  ['#5090c0','#4888b8'],  // 14 fountain (base=water)
+  ['#c8b8a0','#c0b098'],  // 15 torch_wall (base=stone)
 ];
 
 // ── Draw the floor ──────────────────────────────────────
@@ -271,56 +271,56 @@ function drawTileDetail(ctx, t, x, y, r, c) {
   const hash = (r * 31 + c * 17) & 0xFFFF;
   if (t === 1) {
     // Wall — stone bricks with mortar lines
-    ctx.fillStyle = '#1a1628';
+    ctx.fillStyle = '#706050';
     ctx.fillRect(x, y + T - 1, T, 1);
     ctx.fillRect(x + T/2, y, 1, T);
     ctx.fillRect(x, y + T/2, T, 1);
     // Slight highlight on top row of bricks
     if (r > 0 && MAP[r-1][c] !== 1) {
-      ctx.fillStyle = '#3a3452';
+      ctx.fillStyle = '#9a8a78';
       ctx.fillRect(x+1, y+1, T-2, 3);
-      ctx.fillStyle = '#1a1628';
+      ctx.fillStyle = '#706050';
       ctx.fillRect(x, y + T - 2, T, 2);
     }
   } else if (t === 3) {
     // Grass with varied tufts
     if (hash % 4 === 0) {
-      ctx.fillStyle = '#3a7828';
+      ctx.fillStyle = '#68c048';
       ctx.fillRect(x+6, y+4, 2, 5);
       ctx.fillRect(x+10, y+2, 2, 7);
       ctx.fillRect(x+14, y+5, 2, 4);
     }
     if (hash % 6 === 1) {
-      ctx.fillStyle = '#4a8a38';
+      ctx.fillStyle = '#78d058';
       ctx.fillRect(x+20, y+12, 2, 5);
       ctx.fillRect(x+24, y+10, 2, 6);
     }
     if (hash % 8 === 3) {
-      ctx.fillStyle = '#1e4a10';
+      ctx.fillStyle = '#48902a';
       ctx.fillRect(x+16, y+20, 3, 3);
     }
   } else if (t === 12) {
     // Flowers
-    const colors = ['#e04040','#e0e040','#e080e0','#40a0e0'];
+    const colors = ['#f06060','#f0e060','#f0a0f0','#60c0f0'];
     for (let i = 0; i < 3; i++) {
       const fx = x + 4 + ((hash * (i+1)*7) % 20);
       const fy = y + 4 + ((hash * (i+1)*11) % 20);
-      ctx.fillStyle = '#3a8028';
+      ctx.fillStyle = '#58b038';
       ctx.fillRect(fx+1, fy+3, 2, 6);
       ctx.fillStyle = colors[(hash + i) % colors.length];
       ctx.fillRect(fx, fy, 4, 4);
-      ctx.fillStyle = '#f0e060';
+      ctx.fillStyle = '#f8f080';
       ctx.fillRect(fx+1, fy+1, 2, 2);
     }
   } else if (t === 13) {
     // Tree
-    ctx.fillStyle = '#3a2a10';
+    ctx.fillStyle = '#7a5a28';
     ctx.fillRect(x+12, y+16, 8, 16);
-    ctx.fillStyle = '#1e5a14';
+    ctx.fillStyle = '#38982a';
     ctx.fillRect(x+2, y+2, 28, 18);
-    ctx.fillStyle = '#28721c';
+    ctx.fillStyle = '#48b038';
     ctx.fillRect(x+6, y+4, 20, 12);
-    ctx.fillStyle = '#1a4e10';
+    ctx.fillStyle = '#308a22';
     ctx.fillRect(x+4, y+8, 6, 8);
   } else if (t === 4) {
     // Worn path
@@ -335,63 +335,63 @@ function drawTileDetail(ctx, t, x, y, r, c) {
     }
   } else if (t === 5) {
     // Ornate rug
-    ctx.fillStyle = '#7a2020';
+    ctx.fillStyle = '#c04848';
     ctx.fillRect(x+2, y+2, T-4, T-4);
-    ctx.fillStyle = '#a06020';
+    ctx.fillStyle = '#d8a040';
     ctx.fillRect(x+2, y+2, T-4, 2);
     ctx.fillRect(x+2, y+T-4, T-4, 2);
     ctx.fillRect(x+2, y+2, 2, T-4);
     ctx.fillRect(x+T-4, y+2, 2, T-4);
     if ((r+c) % 2 === 0) {
-      ctx.fillStyle = '#8a3030';
+      ctx.fillStyle = '#d05858';
       ctx.fillRect(x+8, y+8, T-16, T-16);
     }
   } else if (t === 6) {
     // Bar counter / table
-    ctx.fillStyle = '#6a4820';
+    ctx.fillStyle = '#b08040';
     ctx.fillRect(x+1, y+1, T-2, T-2);
-    ctx.fillStyle = '#7a5828';
+    ctx.fillStyle = '#c09048';
     ctx.fillRect(x+2, y+2, T-4, 4);
-    ctx.fillStyle = '#4a3010';
+    ctx.fillStyle = '#8a6028';
     ctx.fillRect(x, y+T-3, T, 3);
     // Mugs on counter
     if (hash % 4 === 0) {
-      ctx.fillStyle = '#8a8090';
+      ctx.fillStyle = '#b0a8a0';
       ctx.fillRect(x+8, y+8, 5, 7);
-      ctx.fillStyle = '#c0a050';
+      ctx.fillStyle = '#e0c060';
       ctx.fillRect(x+8, y+8, 5, 2);
     }
   } else if (t === 7) {
     // Barrel with iron bands
-    ctx.fillStyle = '#5a4830';
+    ctx.fillStyle = '#9a8058';
     ctx.fillRect(x+4, y+4, T-8, T-8);
-    ctx.fillStyle = '#4a3820';
+    ctx.fillStyle = '#8a7048';
     ctx.fillRect(x+6, y+6, T-12, T-12);
-    ctx.fillStyle = '#6a6a6a';
+    ctx.fillStyle = '#909090';
     ctx.fillRect(x+4, y+10, T-8, 2);
     ctx.fillRect(x+4, y+18, T-8, 2);
-    ctx.fillStyle = '#3a2810';
+    ctx.fillStyle = '#6a5028';
     ctx.fillRect(x+14, y+12, 4, 5);
   } else if (t === 8) {
     // Door — wooden arch
-    ctx.fillStyle = '#6a5030';
+    ctx.fillStyle = '#b09048';
     ctx.fillRect(x+6, y, T-12, T);
-    ctx.fillStyle = '#7a6038';
+    ctx.fillStyle = '#c0a058';
     ctx.fillRect(x+8, y+2, T-16, T-4);
-    ctx.fillStyle = '#a08040';
+    ctx.fillStyle = '#d8b860';
     ctx.fillRect(x+T/2+2, y+T/2-1, 4, 4);
     // Arch stones
-    ctx.fillStyle = '#3a3452';
+    ctx.fillStyle = '#8a7a68';
     ctx.fillRect(x+4, y, 2, T);
     ctx.fillRect(x+T-6, y, 2, T);
   } else if (t === 9) {
     // Bookshelf
-    ctx.fillStyle = '#3a2818';
+    ctx.fillStyle = '#7a6040';
     ctx.fillRect(x+1, y+1, T-2, T-2);
-    const bookColors = ['#8a2020','#2020a0','#208a20','#8a6a20','#6020a0','#207a7a'];
+    const bookColors = ['#c84040','#4050c0','#40b050','#c0a040','#9040c0','#40a0a0'];
     for (let i = 0; i < 3; i++) {
       const by = y + 3 + i * 10;
-      ctx.fillStyle = '#2a1c10';
+      ctx.fillStyle = '#5a4828';
       ctx.fillRect(x+2, by+8, T-4, 2);
       for (let j = 0; j < 5; j++) {
         ctx.fillStyle = bookColors[(hash + i * 5 + j) % bookColors.length];
@@ -400,43 +400,43 @@ function drawTileDetail(ctx, t, x, y, r, c) {
     }
   } else if (t === 10) {
     // Fireplace
-    ctx.fillStyle = '#3a3050';
+    ctx.fillStyle = '#8a7868';
     ctx.fillRect(x, y, T, T);
-    ctx.fillStyle = '#2a2040';
+    ctx.fillStyle = '#5a4838';
     ctx.fillRect(x+4, y+8, T-8, T-8);
-    ctx.fillStyle = '#1a1020';
+    ctx.fillStyle = '#2a1810';
     ctx.fillRect(x+6, y+10, T-12, T-12);
     // Stone frame
-    ctx.fillStyle = '#4a4060';
+    ctx.fillStyle = '#9a8878';
     ctx.fillRect(x+2, y+4, 4, T-4);
     ctx.fillRect(x+T-6, y+4, 4, T-4);
     ctx.fillRect(x+2, y+4, T-4, 4);
   } else if (t === 11) {
     // Chair
-    ctx.fillStyle = '#5a4020';
+    ctx.fillStyle = '#9a7840';
     ctx.fillRect(x+8, y+8, T-16, T-12);
     ctx.fillRect(x+8, y+4, T-16, 6);
-    ctx.fillStyle = '#6a5028';
+    ctx.fillStyle = '#aa8848';
     ctx.fillRect(x+10, y+6, T-20, 4);
     // Legs
-    ctx.fillStyle = '#3a2810';
+    ctx.fillStyle = '#7a5828';
     ctx.fillRect(x+8, y+T-6, 3, 6);
     ctx.fillRect(x+T-11, y+T-6, 3, 6);
   } else if (t === 14) {
     // Fountain
-    ctx.fillStyle = '#4a4a60';
+    ctx.fillStyle = '#8a8aa0';
     ctx.fillRect(x+4, y+4, T-8, T-8);
-    ctx.fillStyle = '#3a6aaa';
+    ctx.fillStyle = '#60a0d8';
     ctx.fillRect(x+6, y+6, T-12, T-12);
-    ctx.fillStyle = '#5a5a70';
+    ctx.fillStyle = '#9090a8';
     ctx.fillRect(x+12, y+10, 8, 12);
-    ctx.fillStyle = '#6a6a80';
+    ctx.fillStyle = '#a0a0b8';
     ctx.fillRect(x+10, y+8, 12, 4);
   } else if (t === 15) {
     // Torch wall bracket
-    ctx.fillStyle = '#4a4060';
+    ctx.fillStyle = '#8a7a68';
     ctx.fillRect(x+12, y+8, 8, 4);
-    ctx.fillStyle = '#5a5070';
+    ctx.fillStyle = '#9a8a78';
     ctx.fillRect(x+14, y+4, 4, 8);
   }
 }
@@ -498,7 +498,7 @@ class Particle {
       ctx.fillStyle = `rgba(255,${150 + Math.random()*80},50,${alpha})`;
       ctx.fillRect(this.x, this.y, this.size, this.size);
     } else if (this.type === 'dust') {
-      ctx.fillStyle = `rgba(200,190,160,${alpha * 0.25})`;
+      ctx.fillStyle = `rgba(255,240,180,${alpha * 0.5})`;
       ctx.fillRect(this.x, this.y, this.size, this.size);
     } else if (this.type === 'firefly') {
       const pulse = 0.3 + Math.sin(tick * 0.08 + this.phase) * 0.7;
@@ -563,58 +563,55 @@ function spawnParticles() {
 
 // ── Dynamic lighting ────────────────────────────────────
 function drawLighting() {
-  // Dark ambient
-  lightCtx.fillStyle = '#12101a';
+  // Bright sunny ambient — warm cream base for multiply blend
+  lightCtx.fillStyle = '#e8ddd0';
   lightCtx.fillRect(0, 0, W, H);
 
   lightCtx.globalCompositeOperation = 'lighter';
 
-  // Torches
+  // Torches — soft warm highlight
   for (const t of TORCHES) {
-    const flicker = 0.85 + Math.sin(tick * 0.12 + t.x) * 0.08 + Math.random() * 0.07;
-    const radius = 80 * flicker;
+    const flicker = 0.9 + Math.sin(tick * 0.12 + t.x) * 0.05 + Math.random() * 0.05;
+    const radius = 60 * flicker;
     const grad = lightCtx.createRadialGradient(t.x, t.y, 0, t.x, t.y, radius);
-    grad.addColorStop(0, `rgba(255,180,80,${0.9 * flicker})`);
-    grad.addColorStop(0.3, `rgba(220,120,40,${0.5 * flicker})`);
-    grad.addColorStop(0.7, `rgba(150,60,20,${0.15 * flicker})`);
+    grad.addColorStop(0, `rgba(255,220,160,${0.3 * flicker})`);
+    grad.addColorStop(0.5, `rgba(255,190,120,${0.12 * flicker})`);
     grad.addColorStop(1, 'rgba(0,0,0,0)');
     lightCtx.fillStyle = grad;
     lightCtx.fillRect(t.x - radius, t.y - radius, radius * 2, radius * 2);
   }
 
-  // Fireplace — bigger, warmer glow
+  // Fireplace — cozy warm glow
   for (const fp of FIREPLACES) {
-    const flicker = 0.8 + Math.sin(tick * 0.15 + fp.x * 0.1) * 0.1 + Math.random() * 0.1;
-    const radius = 130 * flicker;
+    const flicker = 0.9 + Math.sin(tick * 0.15 + fp.x * 0.1) * 0.06 + Math.random() * 0.04;
+    const radius = 100 * flicker;
     const grad = lightCtx.createRadialGradient(fp.x, fp.y, 0, fp.x, fp.y, radius);
-    grad.addColorStop(0, `rgba(255,150,50,${1.0 * flicker})`);
-    grad.addColorStop(0.2, `rgba(240,100,30,${0.6 * flicker})`);
-    grad.addColorStop(0.5, `rgba(180,50,10,${0.2 * flicker})`);
+    grad.addColorStop(0, `rgba(255,200,120,${0.35 * flicker})`);
+    grad.addColorStop(0.3, `rgba(255,160,80,${0.15 * flicker})`);
     grad.addColorStop(1, 'rgba(0,0,0,0)');
     lightCtx.fillStyle = grad;
     lightCtx.fillRect(fp.x - radius, fp.y - radius, radius * 2, radius * 2);
   }
 
-  // Fountain — cool blue glow
+  // Fountain — sparkling blue highlight
   for (let r = 0; r < ROWS; r++) {
     for (let c = 0; c < COLS; c++) {
       if (MAP[r][c] === 14) {
         const fx = c * T + T/2, fy = r * T + T/2;
-        const grad = lightCtx.createRadialGradient(fx, fy, 0, fx, fy, 50);
-        grad.addColorStop(0, 'rgba(80,140,255,0.3)');
+        const grad = lightCtx.createRadialGradient(fx, fy, 0, fx, fy, 45);
+        grad.addColorStop(0, 'rgba(140,200,255,0.2)');
         grad.addColorStop(1, 'rgba(0,0,0,0)');
         lightCtx.fillStyle = grad;
-        lightCtx.fillRect(fx - 50, fy - 50, 100, 100);
+        lightCtx.fillRect(fx - 45, fy - 45, 90, 90);
       }
     }
   }
 
-  // Outdoor ambient light for grass
+  // Outdoor — extra bright sunlight on grass areas
   for (let r = 0; r < ROWS; r++) {
     for (let c = 0; c < COLS; c++) {
       if (MAP[r][c] === 3 || MAP[r][c] === 12 || MAP[r][c] === 13) {
-        const gx = c * T + T/2, gy = r * T + T/2;
-        lightCtx.fillStyle = 'rgba(40,50,80,0.35)';
+        lightCtx.fillStyle = 'rgba(80,100,50,0.15)';
         lightCtx.fillRect(c * T, r * T, T, T);
       }
     }
@@ -962,10 +959,10 @@ function animateWater() {
       if (MAP[r][c] !== 14) continue;
       const x = c*T, y = r*T;
       // Redraw base
-      floorCtx.fillStyle = (r+c)%2===0 ? '#3a6aaa' : '#3564a0';
+      floorCtx.fillStyle = (r+c)%2===0 ? '#60a0d8' : '#5898d0';
       floorCtx.fillRect(x+6, y+6, T-12, T-12);
       // Shimmer
-      floorCtx.fillStyle = `rgba(160,210,255,${0.15 + Math.sin(tick*0.04+c+r)*0.1})`;
+      floorCtx.fillStyle = `rgba(180,230,255,${0.2 + Math.sin(tick*0.04+c+r)*0.15})`;
       const wy = y+8 + Math.sin(tick*0.03 + c*2)*4;
       floorCtx.fillRect(x+8, wy, T-16, 2);
     }
@@ -979,7 +976,7 @@ function animateFire() {
     const fr = Math.floor(fp.y / T);
     const x = fc * T, y = fr * T;
     // Redraw dark interior
-    floorCtx.fillStyle = '#1a1020';
+    floorCtx.fillStyle = '#2a1810';
     floorCtx.fillRect(x+6, y+10, T-12, T-12);
     // Fire
     const colors = ['#ff6020','#ff8030','#ffaa40','#ffe060'];
