@@ -13,7 +13,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/scripts/emit.sh hook.SessionStart"
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/scripts/emit.sh"
           }
         ]
       }
@@ -23,7 +23,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/scripts/emit.sh hook.SessionEnd"
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/scripts/emit.sh"
           }
         ]
       }
@@ -33,7 +33,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/scripts/emit.sh hook.UserPromptSubmit"
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/scripts/emit.sh"
           }
         ]
       }
@@ -43,7 +43,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/scripts/emit.sh hook.PreToolUse"
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/scripts/emit.sh"
           }
         ]
       }
@@ -53,7 +53,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/scripts/emit.sh hook.PostToolUse"
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/scripts/emit.sh"
           }
         ]
       }
@@ -63,7 +63,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/scripts/emit.sh hook.PostToolUseFailure"
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/scripts/emit.sh"
           }
         ]
       }
@@ -73,7 +73,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/scripts/emit.sh hook.PermissionRequest"
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/scripts/emit.sh"
           }
         ]
       }
@@ -83,7 +83,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/scripts/emit.sh hook.Stop"
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/scripts/emit.sh"
           }
         ]
       }
@@ -93,7 +93,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/scripts/emit.sh hook.Notification"
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/scripts/emit.sh"
           }
         ]
       }
@@ -103,7 +103,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/scripts/emit.sh hook.SubagentStart"
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/scripts/emit.sh"
           }
         ]
       }
@@ -113,7 +113,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/scripts/emit.sh hook.SubagentStop"
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/scripts/emit.sh"
           }
         ]
       }
@@ -123,7 +123,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/scripts/emit.sh hook.TeammateIdle"
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/scripts/emit.sh"
           }
         ]
       }
@@ -133,7 +133,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/scripts/emit.sh hook.TaskCompleted"
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/scripts/emit.sh"
           }
         ]
       }
@@ -143,7 +143,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/scripts/emit.sh hook.PreCompact"
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/scripts/emit.sh"
           }
         ]
       }

@@ -3,6 +3,7 @@ import { mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
+  buildEnvelope,
   dequeueMessage,
   enqueueMessages,
   forwardLocal,
@@ -14,6 +15,36 @@ import {
   updateConfigKey,
   writeConfig,
 } from "./proxy";
+
+// --- buildEnvelope tests ---
+
+describe("buildEnvelope", () => {
+  test("builds envelope from raw hook payload and config", () => {
+    const payload = { hook_event_name: "PreToolUse", session_id: "sess-1", tool_name: "Bash" };
+    const config = { AGENTSMITH_ROOM: "room-1", AGENTSMITH_USER: "alice@co" };
+    const envelope = buildEnvelope(payload, config);
+    expect(envelope).toEqual({
+      room_id: "room-1",
+      type: "hook.PreToolUse",
+      format: "claude_code_v27",
+      sender: { user_id: "alice@co", session_id: "sess-1" },
+      payload,
+    });
+  });
+
+  test("defaults to hook.unknown when hook_event_name missing", () => {
+    const envelope = buildEnvelope({}, { AGENTSMITH_ROOM: "r", AGENTSMITH_USER: "u" });
+    expect(envelope.type).toBe("hook.unknown");
+  });
+
+  test("defaults session_id to empty string when missing", () => {
+    const envelope = buildEnvelope(
+      { hook_event_name: "Stop" },
+      { AGENTSMITH_ROOM: "r", AGENTSMITH_USER: "u" },
+    );
+    expect((envelope.sender as Record<string, string>).session_id).toBe("");
+  });
+});
 
 // --- config helpers tests ---
 
@@ -147,7 +178,10 @@ describe("proxy server", () => {
       },
     });
 
-    writeFileSync(configPath, `AGENTSMITH_SERVER_URL=http://localhost:${upstream.port}\n`);
+    writeFileSync(
+      configPath,
+      `AGENTSMITH_SERVER_URL=http://localhost:${upstream.port}\nAGENTSMITH_ROOM=myroom\nAGENTSMITH_USER=alice@co\nAGENTSMITH_KEY=tok\n`,
+    );
     proxy = startProxy("remote", `http://localhost:${upstream.port}`, configPath, queueBaseDir);
   });
 
@@ -162,16 +196,16 @@ describe("proxy server", () => {
   });
 
   test("returns 200 for valid JSON POST", async () => {
-    const res = await fetch(`${proxy.url}/api/v1/rooms/test/events`, {
+    const res = await fetch(`${proxy.url}/api/v1/rooms/myroom/events`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ type: "hook.PreToolUse", payload: {} }),
+      body: JSON.stringify({ hook_event_name: "PreToolUse", session_id: "s1", tool_name: "Bash" }),
     });
     expect(res.status).toBe(200);
   });
 
   test("returns 400 for invalid JSON", async () => {
-    const res = await fetch(`${proxy.url}/api/v1/rooms/test/events`, {
+    const res = await fetch(`${proxy.url}/api/v1/rooms/myroom/events`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: "not json",
@@ -179,20 +213,22 @@ describe("proxy server", () => {
     expect(res.status).toBe(400);
   });
 
-  test("forwards request to upstream with same path", async () => {
+  test("builds envelope and forwards to upstream", async () => {
     upstreamRequests = [];
     await fetch(`${proxy.url}/api/v1/rooms/myroom/events`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ type: "hook.Stop", payload: {} }),
+      body: JSON.stringify({ hook_event_name: "Stop", session_id: "s1" }),
     });
-    // forward is async/fire-and-forget, give it a moment
     await Bun.sleep(50);
     expect(upstreamRequests.length).toBe(1);
     expect(upstreamRequests[0].path).toBe("/api/v1/rooms/myroom/events");
     expect(upstreamRequests[0].body).toEqual({
+      room_id: "myroom",
       type: "hook.Stop",
-      payload: {},
+      format: "claude_code_v27",
+      sender: { user_id: "alice@co", session_id: "s1" },
+      payload: { hook_event_name: "Stop", session_id: "s1" },
     });
   });
 });
@@ -277,7 +313,7 @@ describe("proxy server (local mode)", () => {
   let proxy: ProxyServer;
 
   beforeAll(() => {
-    writeFileSync(configPath, "AGENTSMITH_SERVER_MODE=local\n");
+    writeFileSync(configPath, "AGENTSMITH_SERVER_MODE=local\nAGENTSMITH_ROOM=localroom\nAGENTSMITH_USER=bob@co\n");
     proxy = startProxy("local", "", configPath, queueBaseDir);
   });
 
@@ -289,7 +325,7 @@ describe("proxy server (local mode)", () => {
     const res = await fetch(`${proxy.url}/api/v1/rooms/localroom/events`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ type: "hook.UserPromptSubmit", payload: {} }),
+      body: JSON.stringify({ hook_event_name: "UserPromptSubmit", session_id: "s1" }),
     });
     const data = await res.json();
     expect(data).toEqual({
@@ -305,18 +341,17 @@ describe("proxy server (local mode)", () => {
     const res = await fetch(`${proxy.url}/api/v1/rooms/localroom/events`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ type: "hook.PreToolUse", payload: {} }),
+      body: JSON.stringify({ hook_event_name: "PreToolUse", session_id: "s1" }),
     });
     const data = await res.json();
     expect(data).toEqual({ systemMessage: "[AgentSmith] PreToolUse" });
   });
 
   test("does not contact any upstream server", async () => {
-    // This would throw/fail if it tried to fetch an empty serverUrl
     const res = await fetch(`${proxy.url}/api/v1/rooms/localroom/events`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ type: "hook.Stop", payload: {} }),
+      body: JSON.stringify({ hook_event_name: "Stop", session_id: "s1" }),
     });
     expect(res.status).toBe(200);
   });

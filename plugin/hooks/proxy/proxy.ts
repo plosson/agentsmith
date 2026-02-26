@@ -159,6 +159,25 @@ export function forwardLocal(path: string, body: unknown, baseDir = DEFAULT_QUEU
   }
 }
 
+export function buildEnvelope(
+  payload: unknown,
+  config: Record<string, string>,
+): Record<string, unknown> {
+  const raw = payload as Record<string, unknown>;
+  const hookEventName = (raw?.hook_event_name as string) ?? "unknown";
+  const sessionId = (raw?.session_id as string) ?? "";
+  return {
+    room_id: config.AGENTSMITH_ROOM ?? "",
+    type: `hook.${hookEventName}`,
+    format: "claude_code_v27",
+    sender: {
+      user_id: config.AGENTSMITH_USER ?? "",
+      session_id: sessionId,
+    },
+    payload: raw,
+  };
+}
+
 export interface ProxyServer {
   server: ReturnType<typeof Bun.serve>;
   url: string;
@@ -181,18 +200,19 @@ export function startProxy(
         return new Response("invalid json", { status: 400 });
       }
 
-      const roomMatch = url.pathname.match(/\/rooms\/([^/]+)\//);
-      const room = roomMatch?.[1];
-
-      const auth = req.headers.get("Authorization") ?? undefined;
+      const config = resolveConfig(configPath);
+      const room = config.AGENTSMITH_ROOM ?? "";
+      const envelope = buildEnvelope(body, config);
+      const apiPath = `/api/v1/rooms/${room}/events`;
+      const authKey = config.AGENTSMITH_KEY ?? "";
 
       if (mode === "local") {
-        forwardLocal(url.pathname, body, queueBaseDir);
+        forwardLocal(apiPath, envelope, queueBaseDir);
       } else {
-        forward(serverUrl, url.pathname, body, queueBaseDir, auth);
+        forward(serverUrl, apiPath, envelope, queueBaseDir, authKey ? `Bearer ${authKey}` : undefined);
       }
 
-      return getResponse(body, room, queueBaseDir);
+      return getResponse(envelope, room, queueBaseDir);
     },
   });
 

@@ -6,19 +6,25 @@ Enables ambient presence between developers and bidirectional interactions while
 ## Project Structure
 
 ```
-agentsmith/                      # Bun monorepo (workspaces in packages/*)
-├── packages/
-│   ├── api/                     # REST API server (Hono + SQLite)
-│   │   ├── Dockerfile           # Multi-stage build for server deployment
-│   │   └── src/
-│   │       ├── index.ts         # Entry point (Bun server)
-│   │       ├── app.ts           # Hono app factory + middleware + routes
-│   │       ├── db/              # SQLite queries (events, rooms, users, migrate)
-│   │       ├── lib/             # Config, errors, cleanup, ULID utils, transform
-│   │       ├── middleware/      # Auth (Auth0 JWT), error handler, logger
-│   │       └── routes/          # events, rooms, presence
-│   └── shared/                  # Shared types & utilities
-│       └── src/                 # Zod schemas, event/room/auth types, TTL utils
+agentsmith/
+├── backend/                     # Bun monorepo (workspaces in packages/*)
+│   ├── package.json             # Workspace root
+│   ├── tsconfig.json            # Base TypeScript config
+│   ├── biome.json               # Linter/formatter config
+│   ├── packages/
+│   │   ├── api/                 # REST API server (Hono + SQLite)
+│   │   │   ├── Dockerfile       # Multi-stage build for server deployment
+│   │   │   └── src/
+│   │   │       ├── index.ts     # Entry point (Bun server)
+│   │   │       ├── app.ts       # Hono app factory + middleware + routes
+│   │   │       ├── db/          # SQLite queries (events, rooms, users, migrate)
+│   │   │       ├── lib/         # Config, errors, cleanup, ULID utils, transform
+│   │   │       ├── middleware/  # Auth (Auth0 JWT), error handler, logger
+│   │   │       └── routes/      # events, rooms, presence
+│   │   └── shared/              # Shared types & utilities
+│   │       └── src/             # Zod schemas, event/room/auth types, TTL utils
+│   └── .dockerignore
+├── frontend/                    # Pure SPA (HTML + JS + Tailwind)
 ├── plugin/                      # Claude Code plugin (pure shell, no build step)
 │   ├── .claude-plugin/          # Plugin manifest (plugin.json)
 │   └── hooks/
@@ -28,10 +34,9 @@ agentsmith/                      # Bun monorepo (workspaces in packages/*)
 │       │   └── emit.sh          # All other hooks: curl POST to local proxy
 │       └── proxy/
 │           └── proxy.ts         # Local proxy server (Bun), started by init.sh
-├── docs/
-│   ├── specs/                   # PRD, TRD, API guidelines, plugin specs
-│   └── plans/                   # Implementation plans
-└── .dockerignore
+└── docs/
+    ├── specs/                   # PRD, TRD, API guidelines, plugin specs
+    └── plans/                   # Implementation plans
 ```
 
 ## Architecture
@@ -79,9 +84,9 @@ Events use a nested envelope format. The **proxy owns the envelope** (stamps `ro
 
 Key design decisions:
 - `sender.user_id` is trusted from the request body (no auth-derived identity yet)
-- TTL is looked up by `type` (see `packages/shared/src/ttl.ts`)
-- Transform-on-read: `packages/api/src/lib/transform.ts` holds a registry of `from:to` format transformers (passthrough when no transformer registered)
-- DB stores flat columns (`sender_user_id`, `sender_session_id`, etc.) but `rowToEvent()` in `packages/api/src/db/events.ts` marshals to the nested `Event` shape
+- TTL is looked up by `type` (see `backend/packages/shared/src/ttl.ts`)
+- Transform-on-read: `backend/packages/api/src/lib/transform.ts` holds a registry of `from:to` format transformers (passthrough when no transformer registered)
+- DB stores flat columns (`sender_user_id`, `sender_session_id`, etc.) but `rowToEvent()` in `backend/packages/api/src/db/events.ts` marshals to the nested `Event` shape
 
 ## Tech Stack
 
@@ -97,7 +102,10 @@ Key design decisions:
 
 ## Commands
 
+All Bun commands run from `backend/`:
+
 ```bash
+cd backend
 bun test                      # Run all tests
 bun test packages/api         # Test API only
 bun run dev:api               # Dev API server with watch
@@ -115,9 +123,9 @@ bun run typecheck             # TypeScript check (all packages)
 - **No ORM** — use raw SQLite prepared statements
 - **ULID for IDs** — sortable, distributed-friendly
 - **Co-located tests** — `*.test.ts` next to source files, using `bun:test`
-- **In-memory SQLite** for test isolation (see `packages/api/src/test-utils.ts`)
+- **In-memory SQLite** for test isolation (see `backend/packages/api/src/test-utils.ts`)
 - **Biome** for formatting (2-space indent, 100-char lines) and linting — run `bun run format` before committing
-- **Error handling** — use `AppError` subclasses from `packages/api/src/lib/errors.ts`
+- **Error handling** — use `AppError` subclasses from `backend/packages/api/src/lib/errors.ts`
 - **Privacy first** — never transmit code, messages, or context through the event fabric
 - **Zero broken windows** — if you encounter pre-existing errors (typecheck, lint, test failures), fix them; never leave them for later
 
