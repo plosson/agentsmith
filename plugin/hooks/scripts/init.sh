@@ -48,17 +48,33 @@ if [ "$1" = "--status" ]; then
   echo "key: ${AGENTSMITH_KEY:+****}"
 
   echo ""
-  echo "=== CONNECTIVITY ==="
+  echo "=== PROXY ==="
   if [ -n "$AGENTSMITH_CLIENT_URL" ]; then
     HEALTH=$(curl -s --max-time 2 "$AGENTSMITH_CLIENT_URL/health" 2>&1)
     if [ $? -eq 0 ]; then
       echo "OK at $AGENTSMITH_CLIENT_URL"
-      echo "$HEALTH"
     else
       echo "UNREACHABLE at $AGENTSMITH_CLIENT_URL"
     fi
   else
     echo "NO CLIENT_URL configured"
+  fi
+
+  echo ""
+  echo "=== SERVER ==="
+  MODE="${AGENTSMITH_SERVER_MODE:-remote}"
+  if [ "$MODE" = "remote" ] && [ -n "$AGENTSMITH_SERVER_URL" ]; then
+    AUTH_HEADER=""
+    [ -n "$AGENTSMITH_KEY" ] && AUTH_HEADER="Authorization: Bearer $AGENTSMITH_KEY"
+    SERVER_HEALTH=$(curl -s --max-time 3 ${AUTH_HEADER:+-H "$AUTH_HEADER"} "$AGENTSMITH_SERVER_URL/health" 2>&1)
+    if [ $? -eq 0 ]; then
+      echo "OK at $AGENTSMITH_SERVER_URL"
+      echo "$SERVER_HEALTH"
+    else
+      echo "UNREACHABLE at $AGENTSMITH_SERVER_URL"
+    fi
+  else
+    echo "local mode (no remote server)"
   fi
   exit 0
 fi

@@ -7,7 +7,9 @@ describe("Health check", () => {
     const res = await app.request("/health");
     expect(res.status).toBe(200);
 
-    const json = await res.json();
-    expect(json).toEqual({ status: "ok" });
+    const json = (await res.json()) as Record<string, unknown>;
+    expect(json.status).toBe("ok");
+    expect(json.uptime_seconds).toBeNumber();
+    expect(json.auth).toBe("enabled");
   });
 });

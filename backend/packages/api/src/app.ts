@@ -23,7 +23,14 @@ export function createApp(db: Database): Hono<AppEnv> {
   app.use("*", cors());
   app.onError(errorHandler);
 
-  app.get("/health", (c) => c.json({ status: "ok" }));
+  app.get("/health", (c) => {
+    const uptime = Math.floor(process.uptime());
+    return c.json({
+      status: "ok",
+      uptime_seconds: uptime,
+      auth: config.authDisabled ? "disabled" : "enabled",
+    });
+  });
 
   if (config.authDisabled) {
     app.use("/api/*", async (c, next) => {

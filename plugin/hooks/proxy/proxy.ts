@@ -206,11 +206,30 @@ export function startProxy(
         const remoteUrl = config.AGENTSMITH_SERVER_URL ?? "";
         const currentMode = config.AGENTSMITH_SERVER_MODE ?? "remote";
         const urlDisplay = currentMode === "remote" ? `${clientUrl} -> ${remoteUrl}` : `${clientUrl} -> /`;
+
+        let serverStatus = "n/a (local mode)";
+        if (currentMode === "remote" && remoteUrl) {
+          try {
+            const authKey = config.AGENTSMITH_KEY ?? "";
+            const headers: Record<string, string> = {};
+            if (authKey) headers.Authorization = `Bearer ${authKey}`;
+            const res = await fetch(`${remoteUrl}/health`, { headers, signal: AbortSignal.timeout(3000) });
+            if (res.ok) {
+              const data = (await res.json()) as Record<string, unknown>;
+              serverStatus = `ok (uptime: ${data.uptime_seconds ?? "?"}s, auth: ${data.auth ?? "?"})`;
+            } else {
+              serverStatus = `error (HTTP ${res.status})`;
+            }
+          } catch (err) {
+            serverStatus = `unreachable (${err instanceof Error ? err.message : "unknown"})`;
+          }
+        }
+
         const ascii = [
           "",
-          `  █▀█ █▀▀ █▀▀ █▄ █ ▀█▀   █▀ █▀▄▀█ █ ▀█▀ █ █   url:  ${urlDisplay}`,
-          `  █▀█ █ █ ██▀ █ ▀█  █    ▄█ █ ▀ █ █  █  █▀█   room: ${room}`,
-          `  ▀ ▀ ▀▀▀ ▀▀▀ ▀  ▀  ▀    ▀▀ ▀   ▀ ▀  ▀  ▀ ▀`,
+          `  █▀█ █▀▀ █▀▀ █▄ █ ▀█▀   █▀ █▀▄▀█ █ ▀█▀ █ █   url:    ${urlDisplay}`,
+          `  █▀█ █ █ ██▀ █ ▀█  █    ▄█ █ ▀ █ █  █  █▀█   room:   ${room}`,
+          `  ▀ ▀ ▀▀▀ ▀▀▀ ▀  ▀  ▀    ▀▀ ▀   ▀ ▀  ▀  ▀ ▀   server: ${serverStatus}`,
         ].join("\n");
         return Response.json({ systemMessage: ascii });
       }
