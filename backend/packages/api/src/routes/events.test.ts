@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { authHeader, createTestContext, type TestContext } from "../test-utils";
+import { authHeader, createTestContext, makeToken, type TestContext } from "../test-utils";
 
 describe("Event routes", () => {
   let ctx: TestContext;
@@ -383,6 +383,221 @@ describe("Event routes", () => {
       const json = await res.json();
       expect(json.events).toHaveLength(1);
       expect(json.events[0].format).toBe("claude_code_v27");
+    });
+  });
+
+  // --- SSE streaming ---
+
+  /** Parse SSE text into an array of {event, data, id} objects */
+  function parseSSE(text: string): { event?: string; data: string; id?: string }[] {
+    const messages: { event?: string; data: string; id?: string }[] = [];
+    const blocks = text.split("\n\n").filter((b) => b.trim());
+    for (const block of blocks) {
+      const msg: { event?: string; data: string; id?: string } = { data: "" };
+      const dataLines: string[] = [];
+      for (const line of block.split("\n")) {
+        if (line.startsWith("event: ")) msg.event = line.slice(7);
+        else if (line.startsWith("data: ")) dataLines.push(line.slice(6));
+        else if (line.startsWith("id: ")) msg.id = line.slice(4);
+      }
+      msg.data = dataLines.join("\n");
+      messages.push(msg);
+    }
+    return messages;
+  }
+
+  describe("GET /api/v1/rooms/:roomId/events/stream (SSE)", () => {
+    it("returns 200 with text/event-stream content type", async () => {
+      ctx = createTestContext();
+      await createRoom("test-room", "plugin-1", "alice@test.com");
+
+      const res = await ctx.app.request("/api/v1/rooms/test-room/events/stream?since=0", {
+        headers: authHeader("web-1", "bob@test.com"),
+      });
+      expect(res.status).toBe(200);
+      expect(res.headers.get("content-type")).toContain("text/event-stream");
+    });
+
+    it("sends catch-up events from DB", async () => {
+      ctx = createTestContext();
+      const room = await createRoom("test-room", "plugin-1", "alice@test.com");
+
+      // Insert an event first
+      await ctx.app.request(`/api/v1/rooms/${room.id}/events`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...authHeader("plugin-1", "alice@test.com"),
+        },
+        body: JSON.stringify(makeEvent(room.id)),
+      });
+
+      const res = await ctx.app.request(`/api/v1/rooms/${room.id}/events/stream?since=0`, {
+        headers: authHeader("web-1", "bob@test.com"),
+      });
+
+      // Read a chunk from the stream
+      expect(res.body).toBeDefined();
+      const reader = (res.body as ReadableStream<Uint8Array>).getReader();
+      const { value } = await reader.read();
+      reader.cancel();
+
+      const text = new TextDecoder().decode(value);
+      const messages = parseSSE(text);
+
+      const eventMsgs = messages.filter((m) => m.event === "event");
+      expect(eventMsgs.length).toBeGreaterThanOrEqual(1);
+
+      const parsed = JSON.parse(eventMsgs[0].data);
+      expect(parsed.type).toBe("hook.Stop");
+      expect(parsed.sender.user_id).toBe("alice@test.com");
+    });
+
+    it("receives live events via bus publish", async () => {
+      ctx = createTestContext();
+      await createRoom("test-room", "plugin-1", "alice@test.com");
+
+      const res = await ctx.app.request("/api/v1/rooms/test-room/events/stream?since=0", {
+        headers: authHeader("web-1", "bob@test.com"),
+      });
+
+      expect(res.body).toBeDefined();
+      const reader = (res.body as ReadableStream<Uint8Array>).getReader();
+
+      // Publish an event directly on the bus
+      ctx.bus.publish({
+        id: "test-live-id",
+        room_id: "test-room",
+        type: "hook.Test",
+        format: "test_v1",
+        sender: { user_id: "alice@test.com", session_id: null },
+        target: null,
+        payload: { live: true },
+        ttl_seconds: 300,
+        created_at: Date.now(),
+        expires_at: Date.now() + 300_000,
+      });
+
+      const { value } = await reader.read();
+      reader.cancel();
+
+      const text = new TextDecoder().decode(value);
+      const messages = parseSSE(text);
+      const eventMsgs = messages.filter((m) => m.event === "event");
+      expect(eventMsgs.length).toBeGreaterThanOrEqual(1);
+
+      const parsed = JSON.parse(eventMsgs[0].data);
+      expect(parsed.payload).toEqual({ live: true });
+    });
+
+    it("POST broadcast event is delivered to SSE subscribers", async () => {
+      ctx = createTestContext();
+      const room = await createRoom("test-room", "plugin-1", "alice@test.com");
+
+      // Connect SSE stream
+      const sseRes = await ctx.app.request(`/api/v1/rooms/${room.id}/events/stream?since=0`, {
+        headers: authHeader("web-1", "bob@test.com"),
+      });
+      expect(sseRes.body).toBeDefined();
+      const reader = (sseRes.body as ReadableStream<Uint8Array>).getReader();
+
+      // POST a broadcast event
+      await ctx.app.request(`/api/v1/rooms/${room.id}/events`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...authHeader("plugin-1", "alice@test.com"),
+        },
+        body: JSON.stringify(makeEvent(room.id, { payload: { signal: "live-test" } })),
+      });
+
+      const { value } = await reader.read();
+      reader.cancel();
+
+      const text = new TextDecoder().decode(value);
+      const messages = parseSSE(text);
+      const eventMsgs = messages.filter((m) => m.event === "event");
+      expect(eventMsgs.length).toBeGreaterThanOrEqual(1);
+
+      const parsed = JSON.parse(eventMsgs[eventMsgs.length - 1].data);
+      expect(parsed.payload).toEqual({ signal: "live-test" });
+    });
+
+    it("targeted events are NOT published to SSE", async () => {
+      ctx = createTestContext();
+      await createRoom("test-room", "plugin-1", "alice@test.com");
+
+      // Verify subscriber count is 0 before connect
+      expect(ctx.bus.subscriberCount("test-room")).toBe(0);
+
+      // Connect SSE
+      const sseRes = await ctx.app.request("/api/v1/rooms/test-room/events/stream?since=0", {
+        headers: authHeader("web-1", "bob@test.com"),
+      });
+      expect(sseRes.body).toBeDefined();
+      const reader = (sseRes.body as ReadableStream<Uint8Array>).getReader();
+
+      expect(ctx.bus.subscriberCount("test-room")).toBe(1);
+
+      // POST a targeted event — should NOT go through bus
+      await ctx.app.request("/api/v1/rooms/test-room/events", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...authHeader("web-1", "bob@test.com"),
+        },
+        body: JSON.stringify(
+          makeEvent("test-room", {
+            type: "interaction",
+            sender: { user_id: "bob@test.com" },
+            target: { user_id: "alice@test.com" },
+            payload: { action: "ping" },
+          }),
+        ),
+      });
+
+      // Post a broadcast so we can read at least one event
+      await ctx.app.request("/api/v1/rooms/test-room/events", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...authHeader("plugin-1", "alice@test.com"),
+        },
+        body: JSON.stringify(makeEvent("test-room", { payload: { marker: true } })),
+      });
+
+      const { value } = await reader.read();
+      reader.cancel();
+
+      const text = new TextDecoder().decode(value);
+      const messages = parseSSE(text);
+      const eventMsgs = messages.filter((m) => m.event === "event");
+
+      // Should only see the broadcast event, not the targeted one
+      for (const msg of eventMsgs) {
+        const parsed = JSON.parse(msg.data);
+        expect(parsed.type).not.toBe("interaction");
+      }
+    });
+
+    it("supports ?token= query param auth", async () => {
+      ctx = createTestContext();
+      await createRoom("test-room", "plugin-1", "alice@test.com");
+
+      const token = makeToken("web-1", "bob@test.com");
+      const res = await ctx.app.request(
+        `/api/v1/rooms/test-room/events/stream?since=0&token=${token}`,
+      );
+      expect(res.status).toBe(200);
+      expect(res.headers.get("content-type")).toContain("text/event-stream");
+    });
+
+    it("returns 401 without auth", async () => {
+      ctx = createTestContext();
+      await createRoom("test-room", "plugin-1", "alice@test.com");
+
+      const res = await ctx.app.request("/api/v1/rooms/test-room/events/stream?since=0");
+      expect(res.status).toBe(401);
     });
   });
 });

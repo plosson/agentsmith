@@ -3,10 +3,12 @@ import type { Hono } from "hono";
 import type { AppEnv } from "./app";
 import { createApp } from "./app";
 import { migrate } from "./db/migrate";
+import { EventBus } from "./lib/event-bus";
 
 export interface TestContext {
   db: Database;
   app: Hono<AppEnv>;
+  bus: EventBus;
 }
 
 export function createTestContext(): TestContext {
@@ -14,8 +16,9 @@ export function createTestContext(): TestContext {
   db.exec("PRAGMA foreign_keys = ON");
   migrate(db);
 
-  const app = createApp(db);
-  return { db, app };
+  const bus = new EventBus();
+  const app = createApp(db, bus);
+  return { db, app, bus };
 }
 
 export function makeToken(sub: string, email: string): string {

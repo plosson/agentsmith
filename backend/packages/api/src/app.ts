@@ -2,6 +2,7 @@ import type { Database } from "bun:sqlite";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { config } from "./lib/config";
+import { EventBus } from "./lib/event-bus";
 import { authMiddleware } from "./middleware/auth";
 import { errorHandler } from "./middleware/error";
 import { requestLogger } from "./middleware/logger";
@@ -16,7 +17,8 @@ export type AppEnv = {
   };
 };
 
-export function createApp(db: Database): Hono<AppEnv> {
+export function createApp(db: Database, bus?: EventBus): Hono<AppEnv> {
+  const eventBus = bus ?? new EventBus();
   const app = new Hono<AppEnv>();
 
   app.use("*", requestLogger);
@@ -48,7 +50,7 @@ export function createApp(db: Database): Hono<AppEnv> {
     app.use("/api/*", authMiddleware(db));
   }
   app.route("/api/v1", roomRoutes(db));
-  app.route("/api/v1", eventRoutes(db));
+  app.route("/api/v1", eventRoutes(db, eventBus));
   app.route("/api/v1", presenceRoutes(db));
 
   return app;

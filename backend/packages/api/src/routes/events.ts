@@ -6,14 +6,18 @@ import {
   TTL_SECONDS,
 } from "@agentsmith/shared";
 import { Hono } from "hono";
+import { streamSSE } from "hono/streaming";
 import type { AppEnv } from "../app";
 import { consumeTargetedEvents, insertEvent, queryEvents } from "../db/events";
 import { addMember, createRoom } from "../db/rooms";
 import { config } from "../lib/config";
 import { PayloadTooLargeError, ValidationError } from "../lib/errors";
+import type { EventBus } from "../lib/event-bus";
 import { transformEvent } from "../lib/transform";
 
-export function eventRoutes(db: Database): Hono<AppEnv> {
+const HEARTBEAT_INTERVAL_MS = 15_000;
+
+export function eventRoutes(db: Database, bus: EventBus): Hono<AppEnv> {
   const router = new Hono<AppEnv>();
 
   router.post("/rooms/:roomId/events", async (c) => {
@@ -56,6 +60,10 @@ export function eventRoutes(db: Database): Hono<AppEnv> {
       targetSessionId: parsed.data.target?.session_id,
     });
 
+    if (!parsed.data.target) {
+      bus.publish(event);
+    }
+
     const targeted = consumeTargetedEvents(
       db,
       roomId,
@@ -76,6 +84,64 @@ export function eventRoutes(db: Database): Hono<AppEnv> {
       },
       201,
     );
+  });
+
+  router.get("/rooms/:roomId/events/stream", (c) => {
+    const roomId = c.req.param("roomId");
+    const since = Number(c.req.query("since") || "0");
+    const format = c.req.query("format");
+
+    return streamSSE(c, async (stream) => {
+      let latestTs = since;
+      let aborted = false;
+
+      // 1. Catch-up: send events since the given timestamp
+      const result = queryEvents(db, roomId, since, 200);
+      for (const event of result.events) {
+        const transformed = transformEvent(event, format);
+        await stream.writeSSE({
+          event: "event",
+          data: JSON.stringify(transformed),
+          id: event.id,
+        });
+        if (event.created_at > latestTs) {
+          latestTs = event.created_at;
+        }
+      }
+
+      // 2. Subscribe to live events
+      const unsubscribe = bus.subscribe(roomId, (event) => {
+        if (aborted) return;
+        // Deduplicate: skip events already sent during catch-up
+        if (event.created_at <= latestTs) return;
+
+        const transformed = transformEvent(event, format);
+        latestTs = event.created_at;
+        stream.writeSSE({
+          event: "event",
+          data: JSON.stringify(transformed),
+          id: event.id,
+        });
+      });
+
+      // 3. Heartbeat to keep connection alive
+      const heartbeat = setInterval(() => {
+        if (aborted) return;
+        stream.writeSSE({ event: "ping", data: "" });
+      }, HEARTBEAT_INTERVAL_MS);
+
+      // 4. Cleanup on disconnect
+      stream.onAbort(() => {
+        aborted = true;
+        clearInterval(heartbeat);
+        unsubscribe();
+      });
+
+      // Keep the stream open by awaiting a promise that resolves on abort
+      await new Promise<void>((resolve) => {
+        stream.onAbort(() => resolve());
+      });
+    });
   });
 
   router.get("/rooms/:roomId/events", (c) => {

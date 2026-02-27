@@ -159,10 +159,15 @@ function eventItemHtml(event) {
 // Router
 // ---------------------------------------------------------------------------
 let pollTimers = [];
+let activeEventSource = null;
 
 function clearPolling() {
   pollTimers.forEach(clearInterval);
   pollTimers = [];
+  if (activeEventSource) {
+    activeEventSource.close();
+    activeEventSource = null;
+  }
 }
 
 function addPollTimer(fn, ms) {
@@ -235,6 +240,17 @@ async function renderRoomDetail(app, roomId) {
     el.innerHTML = `<div class="flex flex-wrap gap-2">${sessions.map((s) => avatarHtml(s)).join('')}</div>`;
   }
 
+  function appendEvent(event) {
+    const el = document.getElementById('event-feed');
+    if (!el) return;
+    let container = el.querySelector('.space-y-1');
+    if (!container) {
+      el.innerHTML = '<div class="space-y-1"></div>';
+      container = el.querySelector('.space-y-1');
+    }
+    container.insertAdjacentHTML('afterbegin', eventItemHtml(event));
+  }
+
   function renderEvents(events) {
     const el = document.getElementById('event-feed');
     if (!el) return;
@@ -269,6 +285,53 @@ async function renderRoomDetail(app, roomId) {
     } catch (_) { /* silently retry next cycle */ }
   }
 
+  let eventPollTimer = null;
+  let sseRetryTimeout = null;
+
+  function stopEventPolling() {
+    if (eventPollTimer) {
+      clearInterval(eventPollTimer);
+      eventPollTimer = null;
+    }
+    if (sseRetryTimeout) {
+      clearTimeout(sseRetryTimeout);
+      sseRetryTimeout = null;
+    }
+  }
+
+  function startEventPolling() {
+    if (!eventPollTimer) {
+      eventPollTimer = setInterval(pollEvents, POLL_INTERVAL);
+      pollTimers.push(eventPollTimer);
+    }
+  }
+
+  function connectEventStream(room, since) {
+    const url = `${API_BASE}/rooms/${encodeURIComponent(room)}/events/stream?since=${since}&token=${DEV_TOKEN}`;
+    const es = new EventSource(url);
+    activeEventSource = es;
+    stopEventPolling();
+
+    es.addEventListener('event', (e) => {
+      try {
+        const event = JSON.parse(e.data);
+        appendEvent(event);
+        if (event.created_at > latestTs) latestTs = event.created_at;
+      } catch (_) { /* ignore parse errors */ }
+    });
+
+    es.onerror = () => {
+      es.close();
+      if (activeEventSource === es) activeEventSource = null;
+      startEventPolling();
+      sseRetryTimeout = setTimeout(() => {
+        sseRetryTimeout = null;
+        if (activeEventSource) return;
+        connectEventStream(room, latestTs);
+      }, 5000);
+    };
+  }
+
   try {
     const { rooms } = await api.listRooms();
     const room = rooms.find((r) => r.id === roomId);
@@ -288,10 +351,10 @@ async function renderRoomDetail(app, roomId) {
         <div id="event-feed"><p class="text-sm text-gray-500">Loading...</p></div>
       </section>`;
 
-    await Promise.all([pollPresence(), pollEvents()]);
+    await pollPresence();
+    connectEventStream(roomId, latestTs);
 
     addPollTimer(pollPresence, POLL_INTERVAL);
-    addPollTimer(pollEvents, POLL_INTERVAL);
   } catch (err) {
     app.innerHTML = `<p class="text-red-400">Failed to load room: ${esc(err.message)}</p>`;
   }
