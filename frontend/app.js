@@ -77,6 +77,16 @@ function formatTime(ts) {
   });
 }
 
+function timeAgo(ts) {
+  const seconds = Math.floor((Date.now() - ts) / 1000);
+  if (seconds < 5) return 'just now';
+  if (seconds < 60) return `${seconds}s ago`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  return `${hours}h ago`;
+}
+
 function describeEvent(event) {
   if (event.type === 'session.signal') {
     return event.payload?.signal ?? 'signal';
@@ -106,9 +116,15 @@ function sessionBadgeHtml(sessionId, size = 'lg') {
   return `<span class="absolute -top-0.5 -right-1.5 px-0.5 rounded-full bg-gray-700 border border-gray-600 text-[7px] font-mono font-medium text-gray-300 leading-none">${esc(tag)}</span>`;
 }
 
+function displayName(userId) {
+  const name = userId.split('@')[0];
+  return name || userId;
+}
+
 function avatarHtml(session) {
   const color = avatarColor(session.user_id);
   const letter = initials(session.display_name);
+  const name = displayName(session.display_name);
   return `
     <div class="flex flex-col items-center gap-2 p-3" title="${esc(session.display_name)}\n${esc(session.session_id)}">
       <div class="relative">
@@ -116,6 +132,8 @@ function avatarHtml(session) {
              style="background-color: ${color}">${letter}</div>
         ${sessionBadgeHtml(session.session_id, 'lg')}
       </div>
+      <span class="text-xs text-gray-300 truncate max-w-[5rem] text-center">${esc(name)}</span>
+      <span class="text-[10px] text-gray-500">${timeAgo(session.updated_at)}</span>
       ${signalBadgeHtml(session.signal)}
     </div>`;
 }
@@ -123,6 +141,7 @@ function avatarHtml(session) {
 function eventItemHtml(event) {
   const color = avatarColor(event.sender.user_id);
   const letter = initials(event.sender.user_id);
+  const name = displayName(event.sender.user_id);
   return `
     <div class="flex items-center gap-3 py-1.5 px-2 rounded hover:bg-gray-800 text-sm">
       <span class="text-xs text-gray-500 font-mono w-16 shrink-0">${formatTime(event.created_at)}</span>
@@ -131,7 +150,8 @@ function eventItemHtml(event) {
               style="background-color: ${color}">${letter}</span>
         ${sessionBadgeHtml(event.sender.session_id, 'sm')}
       </div>
-      <span class="text-gray-400 truncate">${esc(describeEvent(event))}</span>
+      <span class="text-gray-300 shrink-0 text-xs font-medium">${esc(name)}</span>
+      <span class="text-gray-500 truncate">${esc(describeEvent(event))}</span>
     </div>`;
 }
 
