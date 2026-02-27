@@ -16,28 +16,35 @@ Claude Code → plugin hooks → local proxy → API server → shared room
 
 ## Install
 
+### Quick install
+
+```bash
+# macOS / Linux
+curl -LsSf https://raw.githubusercontent.com/plosson/agentsmith/main/install.sh | sh
+```
+
+```powershell
+# Windows (PowerShell)
+irm https://raw.githubusercontent.com/plosson/agentsmith/main/install.ps1 | iex
+```
+
+The installer checks prerequisites (Claude Code, Bun), adds the marketplace, lets you choose an install scope, and configures your username and server URL.
+
 ### Prerequisites
 
 - [Claude Code](https://docs.anthropic.com/en/docs/claude-code) (v2.1.34+)
 - [Bun](https://bun.sh/) runtime (required by the local proxy)
 
-### From the marketplace
-
-From the command line 
+### Manual install
 
 ```shell
 # Step 1: Add the marketplace
-claude plugin marketplace add  plosson/agentsmith
+claude plugin marketplace add plosson/agentsmith
 
-# Step 2a: Install the plugin in the current project AND for you only  
-claude plugin install agentsmith@agentsmith-marketplace -s local
-
-# Step 2b: Install the plugin for the current project only but for everyone in the team 
-claude plugin install agentsmith@agentsmith-marketplace -s project 
-
-# Step 2c: Install the plugin for the all projects   
-claude plugin install agentsmith@agentsmith-marketplace
-
+# Step 2: Install the plugin (pick one)
+claude plugin install agentsmith@agentsmith-marketplace              # all projects (recommended)
+claude plugin install agentsmith@agentsmith-marketplace -s project   # this project, shared with team
+claude plugin install agentsmith@agentsmith-marketplace -s local     # this project, just you
 ```
 
 ## Uninstall
