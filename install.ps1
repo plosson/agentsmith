@@ -5,6 +5,8 @@
 $ErrorActionPreference = "Stop"
 
 $Repo = "plosson/agentsmith"
+$Marketplace = "agentsmith-marketplace"
+$Plugin = "agentsmith"
 $ConfigDir = Join-Path $env:USERPROFILE ".config\agentsmith"
 $ConfigFile = Join-Path $ConfigDir "config"
 
@@ -12,7 +14,18 @@ $ConfigFile = Join-Path $ConfigDir "config"
 
 function Info($msg)  { Write-Host "==> $msg" -ForegroundColor Blue }
 function Ok($msg)    { Write-Host " ✓  $msg" -ForegroundColor Green }
-function Err($msg)   { Write-Host " ✗  $msg" -ForegroundColor Red; exit 1 }
+function Err($msg)   { Write-Host " ✗  $msg" -ForegroundColor Red }
+
+function Get-ConfigValue {
+    param([string]$Key)
+    if (Test-Path $ConfigFile) {
+        $match = Select-String -Path $ConfigFile -Pattern "^$Key=" -ErrorAction SilentlyContinue | Select-Object -First 1
+        if ($match) {
+            return ($match.Line -replace "^$Key=", "")
+        }
+    }
+    return ""
+}
 
 function Set-ConfigValue {
     param([string]$Key, [string]$Value)
@@ -38,6 +51,44 @@ Write-Host "  █▀█ █ █ ██▀ █ ▀█  █    ▄█ █ ▀ █ 
 Write-Host "  ▀ ▀ ▀▀▀ ▀▀▀ ▀  ▀  ▀    ▀▀ ▀   ▀ ▀  ▀  ▀ ▀" -ForegroundColor White
 Write-Host ""
 
+# ── Uninstall mode ──────────────────────────────────────────────────
+
+if ($args -contains "--uninstall") {
+    Info "Uninstalling AgentSmith..."
+
+    # Uninstall plugin from all scopes (ignore errors if not installed in a scope)
+    foreach ($scope in @("user", "project", "local")) {
+        $out = & claude plugin uninstall $Plugin -s $scope 2>&1 | Out-String
+        if ($out -notmatch "not found|not installed") {
+            Ok "Plugin removed from $scope scope"
+        }
+    }
+
+    # Remove marketplace
+    $mpOut = & claude plugin marketplace remove $Marketplace 2>&1 | Out-String
+    if ($mpOut -match "not found|not installed|does not exist") {
+        Ok "Marketplace already removed"
+    } else {
+        Ok "Marketplace removed"
+    }
+
+    # Offer to remove config
+    Write-Host ""
+    $removeConfig = Read-Host "  Remove config at ${ConfigDir}? [y/N]"
+    if ($removeConfig -match "^[yY]") {
+        Remove-Item -Recurse -Force $ConfigDir -ErrorAction SilentlyContinue
+        Ok "Config removed"
+    } else {
+        Ok "Config kept at $ConfigDir"
+    }
+
+    Write-Host ""
+    Write-Host "  AgentSmith uninstalled." -ForegroundColor Green
+    Write-Host "  Restart Claude Code to complete removal."
+    Write-Host ""
+    exit 0
+}
+
 # ── Step 1: Check prerequisites ──────────────────────────────────────
 
 Info "Checking prerequisites..."
@@ -47,7 +98,7 @@ if ($claudePath) {
     $claudeVersion = try { & claude --version 2>$null } catch { "unknown version" }
     Ok "Claude Code found ($claudeVersion)"
 } else {
-    Write-Host " ✗  Claude Code is not installed." -ForegroundColor Red
+    Err "Claude Code is not installed."
     Write-Host "    Install it from: https://docs.anthropic.com/en/docs/claude-code"
     exit 1
 }
@@ -57,7 +108,7 @@ if ($bunPath) {
     $bunVersion = try { & bun --version 2>$null } catch { "unknown version" }
     Ok "Bun found ($bunVersion)"
 } else {
-    Write-Host " ✗  Bun is not installed. The local proxy requires Bun to run." -ForegroundColor Red
+    Err "Bun is not installed. The local proxy requires Bun to run."
     Write-Host "    Install it from: https://bun.sh"
     exit 1
 }
@@ -65,10 +116,14 @@ if ($bunPath) {
 # ── Step 2: Add marketplace ──────────────────────────────────────────
 
 Info "Adding AgentSmith marketplace..."
-& claude plugin marketplace add $Repo
-Ok "Marketplace added"
+$mpOut = & claude plugin marketplace add $Repo 2>&1 | Out-String
+if ($mpOut -match "already installed") {
+    Ok "Marketplace already added"
+} else {
+    Ok "Marketplace added"
+}
 
-# ── Step 3: Choose install scope ─────────────────────────────────────
+# ── Step 3: Install or update plugin ─────────────────────────────────
 
 Write-Host ""
 Info "Where should AgentSmith be installed?"
@@ -86,13 +141,22 @@ switch ($scopeChoice) {
 }
 
 Info "Installing for ${scopeLabel}..."
-& claude plugin install agentsmith@agentsmith-marketplace @scopeArgs
-Ok "Plugin installed"
+$instOut = & claude plugin install "agentsmith@$Marketplace" @scopeArgs 2>&1 | Out-String
+if ($instOut -match "already installed") {
+    Ok "Plugin already installed - updating..."
+    & claude plugin update $Plugin 2>&1 | Out-Null
+    Ok "Plugin updated"
+} else {
+    Ok "Plugin installed"
+}
 
 # ── Step 4: Username ─────────────────────────────────────────────────
 
 Write-Host ""
-$defaultUser = try { & git config user.email 2>$null } catch { "" }
+$defaultUser = Get-ConfigValue "AGENTSMITH_USER"
+if (-not $defaultUser) {
+    $defaultUser = try { & git config user.email 2>$null } catch { "" }
+}
 if ($defaultUser) {
     $userInput = Read-Host "  Username [$defaultUser]"
 } else {
@@ -100,7 +164,10 @@ if ($defaultUser) {
 }
 $user = if ($userInput) { $userInput } else { $defaultUser }
 
-if (-not $user) { Err "Username is required." }
+if (-not $user) {
+    Err "Username is required."
+    exit 1
+}
 
 Set-ConfigValue "AGENTSMITH_USER" $user
 Ok "Username set to $user"
@@ -108,9 +175,18 @@ Ok "Username set to $user"
 # ── Step 5: Server URL ──────────────────────────────────────────────
 
 Write-Host ""
-$serverUrl = Read-Host "  Server URL"
+$defaultUrl = Get-ConfigValue "AGENTSMITH_SERVER_URL"
+if ($defaultUrl) {
+    $urlInput = Read-Host "  Server URL [$defaultUrl]"
+} else {
+    $urlInput = Read-Host "  Server URL"
+}
+$serverUrl = if ($urlInput) { $urlInput } else { $defaultUrl }
 
-if (-not $serverUrl) { Err "Server URL is required." }
+if (-not $serverUrl) {
+    Err "Server URL is required."
+    exit 1
+}
 
 Set-ConfigValue "AGENTSMITH_SERVER_URL" $serverUrl
 Ok "Server URL set to $serverUrl"

@@ -6,6 +6,8 @@ set -e
 # ─────────────────────────────────────────────────────────────────────
 
 REPO="plosson/agentsmith"
+MARKETPLACE="agentsmith-marketplace"
+PLUGIN="agentsmith"
 CONFIG_DIR="$HOME/.config/agentsmith"
 CONFIG_FILE="$CONFIG_DIR/config"
 
@@ -15,6 +17,14 @@ info()  { printf '\033[1;34m==>\033[0m %s\n' "$*"; }
 ok()    { printf '\033[1;32m ✓\033[0m  %s\n' "$*"; }
 err()   { printf '\033[1;31m ✗\033[0m  %s\n' "$*" >&2; }
 bold()  { printf '\033[1m%s\033[0m' "$*"; }
+
+# Read a KEY from the config file (returns empty if missing)
+get_config() {
+  key="$1"
+  if [ -f "$CONFIG_FILE" ]; then
+    grep "^${key}=" "$CONFIG_FILE" 2>/dev/null | head -1 | cut -d'=' -f2-
+  fi
+}
 
 # Write or update a KEY=VALUE in the config file
 set_config() {
@@ -36,6 +46,50 @@ printf '\033[1m  █▀█ █▀▀ █▀▀ █▄ █ ▀█▀   █▀ █
 printf '\033[1m  █▀█ █ █ ██▀ █ ▀█  █    ▄█ █ ▀ █ █  █  █▀█\033[0m\n'
 printf '\033[1m  ▀ ▀ ▀▀▀ ▀▀▀ ▀  ▀  ▀    ▀▀ ▀   ▀ ▀  ▀  ▀ ▀\033[0m\n'
 printf '\n'
+
+# ── Uninstall mode ──────────────────────────────────────────────────
+
+if [ "${1:-}" = "--uninstall" ]; then
+  info "Uninstalling AgentSmith..."
+
+  # Uninstall plugin from all scopes (ignore errors if not installed in a scope)
+  for scope in user project local; do
+    out=$(claude plugin uninstall "$PLUGIN" -s "$scope" 2>&1) || true
+    if printf '%s' "$out" | grep -qi "not found\|not installed"; then
+      : # skip — not installed in this scope
+    else
+      ok "Plugin removed from ${scope} scope"
+    fi
+  done
+
+  # Remove marketplace
+  mp_out=$(claude plugin marketplace remove "$MARKETPLACE" 2>&1) || true
+  if printf '%s' "$mp_out" | grep -qi "not found\|not installed\|does not exist"; then
+    ok "Marketplace already removed"
+  else
+    ok "Marketplace removed"
+  fi
+
+  # Offer to remove config
+  printf '\n'
+  printf '  Remove config at %s? [y/N]: ' "$CONFIG_DIR"
+  read -r remove_config < /dev/tty
+  case "$remove_config" in
+    [yY]|[yY][eE][sS])
+      rm -rf "$CONFIG_DIR"
+      ok "Config removed"
+      ;;
+    *)
+      ok "Config kept at ${CONFIG_DIR}"
+      ;;
+  esac
+
+  printf '\n'
+  printf '\033[1;32m  AgentSmith uninstalled.\033[0m\n'
+  printf '  Restart Claude Code to complete removal.\n'
+  printf '\n'
+  exit 0
+fi
 
 # ── Step 1: Check prerequisites ─────────────────────────────────────
 
@@ -67,7 +121,7 @@ else
   ok "Marketplace added"
 fi
 
-# ── Step 3: Choose install scope ─────────────────────────────────────
+# ── Step 3: Install or update plugin ─────────────────────────────────
 
 printf '\n'
 info "Where should AgentSmith be installed?"
@@ -89,7 +143,9 @@ info "Installing for ${scope_label}..."
 # shellcheck disable=SC2086
 inst_out=$(claude plugin install agentsmith@agentsmith-marketplace $scope_flag 2>&1) || true
 if printf '%s' "$inst_out" | grep -qi "already installed"; then
-  ok "Plugin already installed"
+  ok "Plugin already installed — updating..."
+  upd_out=$(claude plugin update agentsmith 2>&1) || true
+  ok "Plugin updated"
 else
   ok "Plugin installed"
 fi
@@ -97,7 +153,8 @@ fi
 # ── Step 4: Username ─────────────────────────────────────────────────
 
 printf '\n'
-default_user=$(git config user.email 2>/dev/null || echo "")
+default_user=$(get_config "AGENTSMITH_USER")
+[ -z "$default_user" ] && default_user=$(git config user.email 2>/dev/null || echo "")
 if [ -n "$default_user" ]; then
   printf '  Username [%s]: ' "$default_user"
 else
@@ -117,8 +174,14 @@ ok "Username set to ${user}"
 # ── Step 5: Server URL ──────────────────────────────────────────────
 
 printf '\n'
-printf '  Server URL: '
-read -r server_url < /dev/tty
+default_url=$(get_config "AGENTSMITH_SERVER_URL")
+if [ -n "$default_url" ]; then
+  printf '  Server URL [%s]: ' "$default_url"
+else
+  printf '  Server URL: '
+fi
+read -r url_input < /dev/tty
+server_url="${url_input:-$default_url}"
 
 if [ -z "$server_url" ]; then
   err "Server URL is required."
