@@ -1,5 +1,5 @@
 # ── AgentSmith installer (PowerShell) ─────────────────────────────────
-# irm https://raw.githubusercontent.com/plosson/agentsmith/main/install.ps1 | iex
+# irm https://raw.githubusercontent.com/plosson/agentsmith/main/scripts/install.ps1 | iex
 # ──────────────────────────────────────────────────────────────────────
 
 $ErrorActionPreference = "Stop"
@@ -50,44 +50,6 @@ Write-Host "  █▀█ █▀▀ █▀▀ █▄ █ ▀█▀   █▀ █▀
 Write-Host "  █▀█ █ █ ██▀ █ ▀█  █    ▄█ █ ▀ █ █  █  █▀█" -ForegroundColor White
 Write-Host "  ▀ ▀ ▀▀▀ ▀▀▀ ▀  ▀  ▀    ▀▀ ▀   ▀ ▀  ▀  ▀ ▀" -ForegroundColor White
 Write-Host ""
-
-# ── Uninstall mode ──────────────────────────────────────────────────
-
-if ($args -contains "--uninstall") {
-    Info "Uninstalling AgentSmith..."
-
-    # Uninstall plugin from all scopes (ignore errors if not installed in a scope)
-    foreach ($scope in @("user", "project", "local")) {
-        $out = & claude plugin uninstall $Plugin -s $scope 2>&1 | Out-String
-        if ($out -notmatch "not found|not installed") {
-            Ok "Plugin removed from $scope scope"
-        }
-    }
-
-    # Remove marketplace
-    $mpOut = & claude plugin marketplace remove $Marketplace 2>&1 | Out-String
-    if ($mpOut -match "not found|not installed|does not exist") {
-        Ok "Marketplace already removed"
-    } else {
-        Ok "Marketplace removed"
-    }
-
-    # Offer to remove config
-    Write-Host ""
-    $removeConfig = Read-Host "  Remove config at ${ConfigDir}? [y/N]"
-    if ($removeConfig -match "^[yY]") {
-        Remove-Item -Recurse -Force $ConfigDir -ErrorAction SilentlyContinue
-        Ok "Config removed"
-    } else {
-        Ok "Config kept at $ConfigDir"
-    }
-
-    Write-Host ""
-    Write-Host "  AgentSmith uninstalled." -ForegroundColor Green
-    Write-Host "  Restart Claude Code to complete removal."
-    Write-Host ""
-    exit 0
-}
 
 # ── Step 1: Check prerequisites ──────────────────────────────────────
 
