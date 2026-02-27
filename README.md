@@ -49,20 +49,33 @@ claude plugin install agentsmith@agentsmith-marketplace -s local     # this proj
 
 ## Uninstall
 
-From the command line
+### Quick uninstall
+
+**macOS / Linux:**
+```bash
+curl -LsSf https://raw.githubusercontent.com/plosson/agentsmith/main/install.sh | sh -s -- --uninstall
+```
+
+**Windows (PowerShell):**
+```powershell
+& ([scriptblock]::Create((irm https://raw.githubusercontent.com/plosson/agentsmith/main/install.ps1))) --uninstall
+```
+
+Or if you have the repo cloned:
+```bash
+./install.sh --uninstall
+```
+
+This removes the plugin from all scopes, removes the marketplace, and optionally deletes your config.
+
+### Manual uninstall
 
 ```shell
-# Step 1a: Install the plugin in the current project AND for you only  
-claude plugin uninstall agentsmith@agentsmith-marketplace -s local
-
-# Step 1b: Install the plugin for the current project only but for everyone in the team 
-claude plugin uninstall agentsmith@agentsmith-marketplace -s project 
-
-# Step 1c: Install the plugin for the all projects   
-claude plugin uninstall agentsmith@agentsmith-marketplace
-
-# Step 2   
-claude plugin marketplace remove plosson/agentsmith
+claude plugin uninstall agentsmith                  # remove from user scope
+claude plugin uninstall agentsmith -s project       # remove from project scope
+claude plugin uninstall agentsmith -s local         # remove from local scope
+claude plugin marketplace remove agentsmith-marketplace
+rm -rf ~/.config/agentsmith                         # optional: remove config
 ```
 
 
