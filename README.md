@@ -20,12 +20,12 @@ Claude Code → plugin hooks → local proxy → API server → shared room
 
 **macOS / Linux:**
 ```bash
-curl -LsSf https://raw.githubusercontent.com/plosson/agentsmith/main/scripts/install.sh | sh
+curl -LsSf https://agentsmith.me/install.sh | sh
 ```
 
 **Windows (PowerShell):**
 ```powershell
-irm https://raw.githubusercontent.com/plosson/agentsmith/main/scripts/install.ps1 | iex
+irm https://agentsmith.me/install.ps1 | iex
 ```
 
 The installer checks prerequisites (Claude Code, Bun), adds the marketplace, lets you choose an install scope, and configures your username and server URL.
@@ -53,12 +53,12 @@ claude plugin install agentsmith@agentsmith-marketplace -s local     # this proj
 
 **macOS / Linux:**
 ```bash
-curl -LsSf https://raw.githubusercontent.com/plosson/agentsmith/main/scripts/uninstall.sh | sh
+curl -LsSf https://agentsmith.me/uninstall.sh | sh
 ```
 
 **Windows (PowerShell):**
 ```powershell
-irm https://raw.githubusercontent.com/plosson/agentsmith/main/scripts/uninstall.ps1 | iex
+irm https://agentsmith.me/uninstall.ps1 | iex
 ```
 
 Or if you have the repo cloned:
