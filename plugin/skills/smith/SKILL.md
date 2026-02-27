@@ -37,19 +37,21 @@ Run the following to detect existing config:
 GLOBAL_CONFIG="$HOME/.config/agentsmith/config"
 LOCAL_CONFIG=".claude/agentsmith/config"
 
-GLOBAL_URL=$(grep '^AGENTSMITH_SERVER_URL=' "$GLOBAL_CONFIG" 2>/dev/null | cut -d= -f2)
-LOCAL_URL=$(grep '^AGENTSMITH_SERVER_URL=' "$LOCAL_CONFIG" 2>/dev/null | cut -d= -f2)
-
-echo "GLOBAL_URL=$GLOBAL_URL"
-echo "LOCAL_URL=$LOCAL_URL"
+for KEY in AGENTSMITH_SERVER_URL AGENTSMITH_USER AGENTSMITH_ROOM AGENTSMITH_KEY; do
+  G=$(grep "^${KEY}=" "$GLOBAL_CONFIG" 2>/dev/null | cut -d= -f2)
+  L=$(grep "^${KEY}=" "$LOCAL_CONFIG" 2>/dev/null | cut -d= -f2)
+  echo "${KEY}: global=${G:-<not set>} local=${L:-<not set>}"
+done
 ```
+
+Show the user a summary of their current configuration. Indicate which values are missing. Note that `AGENTSMITH_ROOM` defaults to `lobby` if not set, and `AGENTSMITH_KEY` is optional.
 
 **Step 2: Decide what to do based on the result**
 
-- If **both** are empty/missing → proceed to Step 3 (ask for URL).
-- If a URL is already set → tell the user what's configured (show which file it comes from) and ask if they want to change it using `AskUserQuestion` with options "Keep current" and "Change it". If they choose to keep it, stop here.
+- If **all required fields** (`AGENTSMITH_SERVER_URL` and `AGENTSMITH_USER`) are already set → show the current config and ask the user if they want to change anything using `AskUserQuestion` with options "Looks good" and "Change settings". If they choose "Looks good", stop here.
+- If any required field is missing → proceed to collect the missing values (Steps 3-5).
 
-**Step 3: Ask for the server URL**
+**Step 3: Ask for the server URL** (skip if already set and user didn't choose "Change settings")
 
 Use `AskUserQuestion` to ask: **"What is the AgentSmith server URL?"** with these options:
 - `http://localhost:6001` — "Local dev server"
@@ -57,38 +59,61 @@ Use `AskUserQuestion` to ask: **"What is the AgentSmith server URL?"** with thes
 
 (The user can also type a custom URL via "Other".)
 
-**Step 4: Ask for the scope**
+**Step 4: Ask for the username** (skip if already set and user didn't choose "Change settings")
 
-Use `AskUserQuestion` to ask: **"Save this server URL for all projects or this project only?"** with these options:
-- `All projects (global)` — "Writes to ~/.config/agentsmith/config"
+Use `AskUserQuestion` to ask: **"What is your username (email)?"** with these options:
+- Use 2-3 example emails that are clearly placeholders, e.g. `alice@example.com`, `bob@example.com`
+
+(The user will type their actual email via "Other".)
+
+**Step 5: Ask for the room** (skip if already set and user didn't choose "Change settings")
+
+Use `AskUserQuestion` to ask: **"Which room should events be sent to?"** with these options:
+- `lobby` — "Default shared room (Recommended)"
+- `dev` — "Development room"
+
+(The user can also type a custom room name via "Other".)
+
+**Step 6: Ask for the scope**
+
+Use `AskUserQuestion` to ask: **"Save config for all projects or this project only?"** with these options:
+- `All projects (global)` — "Writes to ~/.config/agentsmith/config (Recommended)"
 - `This project only` — "Writes to .claude/agentsmith/config"
 
-**Step 5: Write the config**
+**Step 7: Write the config**
 
-Based on the scope chosen:
-
-- **Global**: Ensure `~/.config/agentsmith/` exists, then write/update `AGENTSMITH_SERVER_URL=<url>` in `~/.config/agentsmith/config`. If the file already exists, replace the existing `AGENTSMITH_SERVER_URL` line (or append if not present). Do not touch other keys.
-- **Local**: Ensure `.claude/agentsmith/` exists, then write/update `AGENTSMITH_SERVER_URL=<url>` in `.claude/agentsmith/config`. Same rules — replace existing line or append.
-
-Use the following bash pattern to upsert a key in a config file:
+Based on the scope chosen, write **all collected values** to the chosen config file. Use the following bash pattern to upsert each key:
 
 ```bash
-CONFIG_FILE="<path>"  # set to global or local path
-KEY="AGENTSMITH_SERVER_URL"
-VALUE="<url>"
+CONFIG_FILE="<path>"  # set to global or local path based on scope
 
-mkdir -p "$(dirname "$CONFIG_FILE")"
-touch "$CONFIG_FILE"
-if grep -q "^${KEY}=" "$CONFIG_FILE"; then
-  sed -i '' "s|^${KEY}=.*|${KEY}=${VALUE}|" "$CONFIG_FILE"
-else
-  echo "${KEY}=${VALUE}" >> "$CONFIG_FILE"
-fi
+upsert() {
+  local KEY="$1" VALUE="$2"
+  mkdir -p "$(dirname "$CONFIG_FILE")"
+  touch "$CONFIG_FILE"
+  if grep -q "^${KEY}=" "$CONFIG_FILE"; then
+    sed -i '' "s|^${KEY}=.*|${KEY}=${VALUE}|" "$CONFIG_FILE"
+  else
+    echo "${KEY}=${VALUE}" >> "$CONFIG_FILE"
+  fi
+}
+
+upsert AGENTSMITH_SERVER_URL "<url>"
+upsert AGENTSMITH_USER "<user>"
+upsert AGENTSMITH_ROOM "<room>"
 ```
 
-**Step 6: Confirm**
+Only write keys that were collected/changed. Do not touch other keys in the file.
 
-Tell the user the config was saved and suggest running `/smith status` to verify connectivity, or `/smith restart` if the proxy needs to pick up the new URL.
+**Step 8: Restart proxy and confirm**
+
+Restart the proxy to pick up the new config:
+
+```bash
+bash "${CLAUDE_PLUGIN_ROOT}/hooks/scripts/init.sh" --restart
+```
+
+Tell the user the config was saved and the proxy restarted. Suggest running `/smith status` to verify connectivity.
 
 ---
 

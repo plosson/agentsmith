@@ -170,6 +170,19 @@ export function forwardLocal(path: string, body: unknown, baseDir = DEFAULT_QUEU
   }
 }
 
+function detectUser(config: Record<string, string>): string {
+  const configured = config.AGENTSMITH_USER;
+  if (configured) return configured;
+  try {
+    const result = Bun.spawnSync(["git", "config", "user.email"]);
+    const email = result.stdout.toString().trim();
+    if (email) return email;
+  } catch {
+    // git not available
+  }
+  return process.env.USER ?? "";
+}
+
 export function buildEnvelope(
   payload: unknown,
   config: Record<string, string>,
@@ -182,7 +195,7 @@ export function buildEnvelope(
     type: `hook.${hookEventName}`,
     format: "claude_code_v27",
     sender: {
-      user_id: config.AGENTSMITH_USER ?? "",
+      user_id: detectUser(config),
       session_id: sessionId,
     },
     payload: raw,
@@ -231,10 +244,11 @@ export function startProxy(
           }
         }
 
+        const user = detectUser(config);
         const ascii = [
           "",
           `  █▀█ █▀▀ █▀▀ █▄ █ ▀█▀   █▀ █▀▄▀█ █ ▀█▀ █ █   url:    ${urlDisplay}`,
-          `  █▀█ █ █ ██▀ █ ▀█  █    ▄█ █ ▀ █ █  █  █▀█   room:   ${room}`,
+          `  █▀█ █ █ ██▀ █ ▀█  █    ▄█ █ ▀ █ █  █  █▀█   user: ${user}  room: ${room}`,
           `  ▀ ▀ ▀▀▀ ▀▀▀ ▀  ▀  ▀    ▀▀ ▀   ▀ ▀  ▀  ▀ ▀   server: ${serverStatus}`,
         ].join("\n");
         return Response.json({ systemMessage: ascii });

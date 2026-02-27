@@ -7,3 +7,11 @@ _AS_LOCAL=".claude/agentsmith/config"
 
 [ -f "$_AS_GLOBAL" ] && . "$_AS_GLOBAL"
 [ -f "$_AS_LOCAL" ] && . "$_AS_LOCAL"
+
+# Default room to "lobby" if not configured
+[ -z "$AGENTSMITH_ROOM" ] && AGENTSMITH_ROOM="lobby"
+
+# Default user to git email or system user
+if [ -z "$AGENTSMITH_USER" ]; then
+  AGENTSMITH_USER=$(git config user.email 2>/dev/null || echo "$USER")
+fi

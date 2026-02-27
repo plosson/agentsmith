@@ -5,7 +5,17 @@ PIDFILE="$HOME/.config/agentsmith/proxy.pid"
 LOGFILE="$HOME/.config/agentsmith/proxy.log"
 
 . "$SCRIPTS_DIR/env.sh"
-[ -z "$AGENTSMITH_SERVER_URL" ] && [ -z "$AGENTSMITH_ROOM" ] && exit 0
+
+# Require server URL — show welcome once, then silently exit on subsequent sessions
+if [ -z "$AGENTSMITH_SERVER_URL" ]; then
+  MARKER="$HOME/.config/agentsmith/.welcome-shown"
+  if [ ! -f "$MARKER" ]; then
+    mkdir -p "$HOME/.config/agentsmith"
+    touch "$MARKER"
+    echo "AgentSmith plugin installed! Run /smith setup to configure your connection."
+  fi
+  exit 0
+fi
 
 # Stop proxy (used by --restart)
 stop_proxy() {
