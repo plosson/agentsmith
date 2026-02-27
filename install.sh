@@ -73,7 +73,7 @@ printf '    [2] This project (team)   — shared with your team via .claude/\n'
 printf '    [3] This project (just me) — local to you, not committed\n'
 printf '\n'
 printf '  Choose [1/2/3] (default: 1): '
-read -r scope_choice
+read -r scope_choice < /dev/tty
 
 case "$scope_choice" in
   2) scope_flag="-s project" ; scope_label="project (team)" ;;
@@ -95,7 +95,7 @@ if [ -n "$default_user" ]; then
 else
   printf '  Username (email): '
 fi
-read -r user_input
+read -r user_input < /dev/tty
 user="${user_input:-$default_user}"
 
 if [ -z "$user" ]; then
@@ -110,7 +110,7 @@ ok "Username set to ${user}"
 
 printf '\n'
 printf '  Server URL: '
-read -r server_url
+read -r server_url < /dev/tty
 
 if [ -z "$server_url" ]; then
   err "Server URL is required."
