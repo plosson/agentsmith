@@ -6,17 +6,6 @@ LOGFILE="$HOME/.config/agentsmith/proxy.log"
 
 . "$SCRIPTS_DIR/env.sh"
 
-# Require server URL — show welcome once, then silently exit on subsequent sessions
-if [ -z "$AGENTSMITH_SERVER_URL" ]; then
-  MARKER="$HOME/.config/agentsmith/.welcome-shown"
-  if [ ! -f "$MARKER" ]; then
-    mkdir -p "$HOME/.config/agentsmith"
-    touch "$MARKER"
-    echo "AgentSmith plugin installed! Run /smith setup to configure your connection."
-  fi
-  exit 0
-fi
-
 # Stop proxy (used by --restart)
 stop_proxy() {
   if [ -f "$PIDFILE" ] && kill -0 "$(cat "$PIDFILE")" 2>/dev/null; then
@@ -38,6 +27,30 @@ start_proxy() {
   echo $! > "$PIDFILE"
 }
 
+# Output ASCII banner as JSON systemMessage
+print_banner() {
+  local l1="" l2="" l3=""
+  if [ -z "$AGENTSMITH_SERVER_URL" ]; then
+    l2="not configured"
+    l3="run /smith setup"
+  else
+    local mode="${AGENTSMITH_SERVER_MODE:-remote}"
+    if [ "$mode" = "remote" ]; then
+      l1="url:    ${AGENTSMITH_CLIENT_URL:-…} -> ${AGENTSMITH_SERVER_URL}"
+    else
+      l1="url:    ${AGENTSMITH_CLIENT_URL:-…} (local)"
+    fi
+    l2="user:   ${AGENTSMITH_USER}  room: ${AGENTSMITH_ROOM}"
+    l3="mode:   ${mode}"
+  fi
+  local msg=""
+  msg+="\\n  █▀█ █▀▀ █▀▀ █▄ █ ▀█▀   █▀ █▀▄▀█ █ ▀█▀ █ █   ${l1}"
+  msg+="\\n  █▀█ █ █ ██▀ █ ▀█  █    ▄█ █ ▀ █ █  █  █▀█   ${l2}"
+  msg+="\\n  ▀ ▀ ▀▀▀ ▀▀▀ ▀  ▀  ▀    ▀▀ ▀   ▀ ▀  ▀  ▀ ▀   ${l3}"
+  printf '{"systemMessage":"%s"}\n' "$msg"
+}
+
+# --status: detailed status (for /smith status)
 if [ "$1" = "--status" ]; then
   echo "=== PROXY ==="
   if [ -f "$PIDFILE" ] && kill -0 "$(cat "$PIDFILE")" 2>/dev/null; then
@@ -85,13 +98,14 @@ if [ "$1" = "--status" ]; then
   exit 0
 fi
 
+# --restart: stop + start proxy, then exit
 if [ "$1" = "--restart" ]; then
   stop_proxy
-fi
-
-start_proxy
-
-if [ "$1" = "--restart" ]; then
+  if [ -z "$AGENTSMITH_SERVER_URL" ]; then
+    echo "No AGENTSMITH_SERVER_URL configured. Run /smith setup."
+    exit 0
+  fi
+  start_proxy
   sleep 0.3
   if kill -0 "$(cat "$PIDFILE")" 2>/dev/null; then
     echo "Proxy restarted (pid $(cat "$PIDFILE"))"
@@ -101,19 +115,22 @@ if [ "$1" = "--restart" ]; then
   exit 0
 fi
 
-# Wait briefly for proxy to write AGENTSMITH_CLIENT_URL to config
-sleep 0.2
+# --- SessionStart (no args) ---
 
-# Re-source to pick up AGENTSMITH_CLIENT_URL written by proxy
-. "$SCRIPTS_DIR/env.sh"
+# Not configured — banner + exit
+if [ -z "$AGENTSMITH_SERVER_URL" ]; then
+  print_banner
+  exit 0
+fi
 
-# Write merged config to Claude env file
-for cfg in "$_AS_GLOBAL" "$_AS_LOCAL"; do
-  [ -f "$cfg" ] || continue
-  while IFS='=' read -r key _; do
-    [[ "$key" =~ ^#.*$ || -z "$key" ]] && continue
-    echo "${key}=${!key}" >> "$CLAUDE_ENV_FILE"
-  done < "$cfg"
+start_proxy
+
+# Wait for proxy to write AGENTSMITH_CLIENT_URL to config (up to 2s)
+for _i in 1 2 3 4 5; do
+  sleep 0.4
+  AGENTSMITH_CLIENT_URL=$(grep '^AGENTSMITH_CLIENT_URL=' "$_AS_GLOBAL" 2>/dev/null | cut -d= -f2)
+  [ -n "$AGENTSMITH_CLIENT_URL" ] && break
 done
 
-curl -s --max-time 2 "$AGENTSMITH_CLIENT_URL/health"
+as_export_env
+print_banner

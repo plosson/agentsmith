@@ -81,8 +81,8 @@ export function createSprites(scene, avatars) {
 
     const nameTag = scene.add.text(sd.col * T + T/2, sd.row * T - AV_OY + 2, charDef.name, {
       fontFamily: "'Press Start 2P', monospace",
-      fontSize: '6px',
-      color: charDef.isPlayer ? '#5fe87a' : '#ffffff',
+      fontSize: '9px',
+      color: charDef.isPlayer ? '#60b8f0' : '#ffffff',
       stroke: '#000000',
       strokeThickness: 2,
     });
@@ -93,7 +93,7 @@ export function createSprites(scene, avatars) {
       col: sd.col, row: sd.row,
       x: sd.col * T, y: sd.row * T,
       tx: sd.col * T, ty: sd.row * T,
-      speed: charDef.isPlayer ? 2.8 : 0.8 + Math.random() * 0.6,
+      speed: charDef.isPlayer ? 2.8 : 0.8 + Math.random() * 0.5,
       isPlayer: !!charDef.isPlayer,
       name: charDef.name,
       key: key,

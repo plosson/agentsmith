@@ -15,3 +15,12 @@ _AS_LOCAL=".claude/agentsmith/config"
 if [ -z "$AGENTSMITH_USER" ]; then
   AGENTSMITH_USER=$(git config user.email 2>/dev/null || echo "$USER")
 fi
+
+# Write all resolved AGENTSMITH_* vars to Claude env file.
+# Called by init.sh once after proxy is ready.
+as_export_env() {
+  [ -z "$CLAUDE_ENV_FILE" ] && return
+  for var in $(compgen -v AGENTSMITH_); do
+    echo "${var}=${!var}" >> "$CLAUDE_ENV_FILE"
+  done
+}

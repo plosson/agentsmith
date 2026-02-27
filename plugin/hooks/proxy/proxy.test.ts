@@ -45,6 +45,24 @@ describe("buildEnvelope", () => {
     );
     expect((envelope.sender as Record<string, string>).session_id).toBe("");
   });
+
+  test("falls back to git email when AGENTSMITH_USER is missing", () => {
+    const envelope = buildEnvelope(
+      { hook_event_name: "Stop" },
+      { AGENTSMITH_ROOM: "r" },
+    );
+    const userId = (envelope.sender as Record<string, string>).user_id;
+    // Should resolve to git email or $USER — never empty on a configured dev machine
+    expect(userId.length).toBeGreaterThan(0);
+  });
+
+  test("uses configured AGENTSMITH_USER over git fallback", () => {
+    const envelope = buildEnvelope(
+      { hook_event_name: "Stop" },
+      { AGENTSMITH_ROOM: "r", AGENTSMITH_USER: "explicit@co" },
+    );
+    expect((envelope.sender as Record<string, string>).user_id).toBe("explicit@co");
+  });
 });
 
 // --- config helpers tests ---

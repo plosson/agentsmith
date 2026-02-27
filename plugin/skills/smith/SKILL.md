@@ -31,20 +31,17 @@ If `$ARGUMENTS` is **"setup"**, guide the user through configuring their AgentSm
 
 **Step 1: Check current state**
 
-Run the following to detect existing config:
+Source `env.sh` to get all resolved values (including auto-detected defaults), then display them:
 
 ```bash
-GLOBAL_CONFIG="$HOME/.config/agentsmith/config"
-LOCAL_CONFIG=".claude/agentsmith/config"
-
-for KEY in AGENTSMITH_SERVER_URL AGENTSMITH_USER AGENTSMITH_ROOM AGENTSMITH_KEY; do
-  G=$(grep "^${KEY}=" "$GLOBAL_CONFIG" 2>/dev/null | cut -d= -f2)
-  L=$(grep "^${KEY}=" "$LOCAL_CONFIG" 2>/dev/null | cut -d= -f2)
-  echo "${KEY}: global=${G:-<not set>} local=${L:-<not set>}"
-done
+. "${CLAUDE_PLUGIN_ROOT}/hooks/scripts/env.sh"
+echo "AGENTSMITH_SERVER_URL=${AGENTSMITH_SERVER_URL:-<not set>}"
+echo "AGENTSMITH_USER=${AGENTSMITH_USER}"
+echo "AGENTSMITH_ROOM=${AGENTSMITH_ROOM}"
+echo "AGENTSMITH_KEY=${AGENTSMITH_KEY:+****}"
 ```
 
-Show the user a summary of their current configuration. Indicate which values are missing. Note that `AGENTSMITH_ROOM` defaults to `lobby` if not set, and `AGENTSMITH_KEY` is optional.
+Show the user a summary of their current configuration. Indicate which values come from config vs auto-detected defaults. Note that `AGENTSMITH_ROOM` defaults to `lobby`, `AGENTSMITH_USER` defaults to `git config user.email`, and `AGENTSMITH_KEY` is optional.
 
 **Step 2: Decide what to do based on the result**
 
@@ -61,10 +58,16 @@ Use `AskUserQuestion` to ask: **"What is the AgentSmith server URL?"** with thes
 
 **Step 4: Ask for the username** (skip if already set and user didn't choose "Change settings")
 
-Use `AskUserQuestion` to ask: **"What is your username (email)?"** with these options:
-- Use 2-3 example emails that are clearly placeholders, e.g. `alice@example.com`, `bob@example.com`
+First detect the git email:
+```bash
+git config user.email 2>/dev/null
+```
 
-(The user will type their actual email via "Other".)
+Use `AskUserQuestion` to ask: **"What username should identify you?"** with these options:
+- The detected git email (if found) — "Auto-detected from git (Recommended)"
+- `other@example.com` — "Use a different email"
+
+(The user can type their actual email via "Other".)
 
 **Step 5: Ask for the room** (skip if already set and user didn't choose "Change settings")
 

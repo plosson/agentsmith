@@ -1,20 +1,22 @@
 import { T, COLS, ROWS, AV_OY, state } from './config.js';
-import { MAP, FIREPLACES } from './map.js';
+import { MAP, SCREENS } from './map.js';
 import { drawFloor } from './floor.js';
 import { generateTextures, createSprites, moveAvatar } from './avatars.js';
 import { spawnParticles, updateParticles, drawParticles } from './particles.js';
 import { initLighting, drawLighting } from './lighting.js';
 
 // ── Phaser scene ────────────────────────────────────────
-export class TavernScene extends Phaser.Scene {
+export class OfficeScene extends Phaser.Scene {
   constructor() {
-    super('TavernScene');
+    super('OfficeScene');
     this.avatars = [];
     this.player = null;
     this.particles = [];
   }
 
-  preload() {}
+  preload() {
+    this.load.atlas('office', 'assets/PixelOfficeAssets.png', 'assets/atlas.json');
+  }
 
   create() {
     drawFloor(this);
@@ -28,80 +30,48 @@ export class TavernScene extends Phaser.Scene {
 
     this.setupInput();
 
-    // Fireplace overlay graphics (redrawn each frame)
-    this.fireGfx = this.add.graphics();
-    this.fireGfx.setDepth(1);
+    // Zone labels — high-contrast, readable
+    const labelStyle = {
+      fontFamily: "'Press Start 2P', monospace",
+      fontSize: '8px',
+      color: '#f0f0f0',
+      stroke: '#000000',
+      strokeThickness: 3,
+    };
+    this.add.text(8 * T, 6 * T + 6, 'Lobby', labelStyle).setDepth(2).setAlpha(0.7);
+    this.add.text(2 * T, 9 * T + 6, 'Upper Offices', labelStyle).setDepth(2).setAlpha(0.7);
+    this.add.text(2 * T, 13 * T + 6, 'Lower Offices', labelStyle).setDepth(2).setAlpha(0.7);
+    this.add.text(2 * T, 18 * T + 6, 'Break Room', labelStyle).setDepth(2).setAlpha(0.7);
+    this.add.text(20 * T, 18 * T + 6, 'Meeting', labelStyle).setDepth(2).setAlpha(0.7);
 
-    // Fountain overlay graphics
-    this.waterGfx = this.add.graphics();
-    this.waterGfx.setDepth(1);
+    // Screen overlay graphics (redrawn each frame for glow effect)
+    this.screenGfx = this.add.graphics();
+    this.screenGfx.setDepth(1);
 
     // Particle graphics layer
     this.particleGfx = this.add.graphics();
     this.particleGfx.setDepth(9000);
+
+    // HUD clock
+    this._clockEl = document.getElementById('hud-clock');
   }
 
   setupInput() {
     this.cursors = this.input.keyboard.createCursorKeys();
   }
 
-  // ── Animated tiles ────────────────────────────────────
-  animateFire() {
+  // ── Animated screens (subtle monitor glow) ─────────────
+  animateScreens() {
     const tick = state.tick;
-    this.fireGfx.clear();
-    for (const fp of FIREPLACES) {
-      const fc = Math.floor(fp.x / T);
-      const fr = Math.floor(fp.y / T);
-      const x = fc * T, y = fr * T;
-      this.fireGfx.fillStyle(0x2a1810);
-      this.fireGfx.fillRect(x+6, y+10, T-12, T-12);
-      const colors = [0xff6020, 0xff8030, 0xffaa40, 0xffe060];
-      for (let i = 0; i < 5; i++) {
-        const fx = x + 10 + Math.sin(tick*0.15 + i*2)*4 + (i%3)*3;
-        const fy = y + T - 8 - Math.abs(Math.sin(tick*0.1 + i*1.5))*8 - i*2;
-        const fs = 3 + Math.sin(tick*0.2 + i)*2;
-        this.fireGfx.fillStyle(colors[i % colors.length]);
-        this.fireGfx.fillRect(fx, fy, fs, fs + 2);
-      }
-    }
-  }
-
-  animateWater() {
-    const tick = state.tick;
-    if (tick % 20 !== 0) return;
-    this.waterGfx.clear();
-    for (let r = 0; r < ROWS; r++) {
-      for (let c = 0; c < COLS; c++) {
-        const tile = MAP[r][c];
-        if (tile !== 14 && tile !== 2) continue;
-        const x = c*T, y = r*T;
-        if (tile === 14) {
-          const color = (r+c)%2===0 ? 0x60a0d8 : 0x5898d0;
-          this.waterGfx.fillStyle(color);
-          this.waterGfx.fillRect(x+6, y+6, T-12, T-12);
-          const shimmerAlpha = 0.2 + Math.sin(tick*0.04+c+r)*0.15;
-          this.waterGfx.fillStyle(0xb4e6ff, shimmerAlpha);
-          const wy = y+8 + Math.sin(tick*0.03 + c*2)*4;
-          this.waterGfx.fillRect(x+8, wy, T-16, 2);
-        } else {
-          // Pool water — animated surface within stone edges
-          const isW = (rr, cc) =>
-            rr >= 0 && rr < ROWS && cc >= 0 && cc < COLS && MAP[rr][cc] === 2;
-          const ew = 4;
-          const ex = isW(r, c-1) ? 0 : ew;
-          const ey = isW(r-1, c) ? 0 : ew;
-          const iw = T - ex - (isW(r, c+1) ? 0 : ew);
-          const ih = T - ey - (isW(r+1, c) ? 0 : ew);
-          const color = (r+c)%2===0 ? 0x5898d0 : 0x5090c0;
-          this.waterGfx.fillStyle(color);
-          this.waterGfx.fillRect(x+ex, y+ey, iw, ih);
-          // Shimmer ripples
-          const shimmerAlpha = 0.15 + Math.sin(tick*0.03+c*1.5+r)*0.12;
-          this.waterGfx.fillStyle(0xb4e6ff, shimmerAlpha);
-          const wy = y+ey+2 + Math.sin(tick*0.025 + c*2.5 + r*0.7)*3;
-          this.waterGfx.fillRect(x+ex+2, wy, iw-4, 2);
-        }
-      }
+    if (tick % 10 !== 0) return;
+    this.screenGfx.clear();
+    for (const s of SCREENS) {
+      const sc = Math.floor(s.x / T);
+      const sr = Math.floor(s.y / T);
+      const x = sc * T, y = sr * T;
+      const flicker = 0.7 + Math.sin(tick * 0.03 + sc * 2) * 0.15;
+      this.screenGfx.fillStyle(0x4488cc, 0.15 * flicker);
+      this.screenGfx.fillRect(x + 2, y + 1, T - 4, T - 3);
     }
   }
 
@@ -154,13 +124,12 @@ export class TavernScene extends Phaser.Scene {
 
       // Sync nametag
       a.nameTag.x = a.x + T/2;
-      a.nameTag.y = a.y - AV_OY + 6;
+      a.nameTag.y = a.y - AV_OY + 2;
       a.nameTag.setDepth(a.y + T + 1);
     }
 
-    // Animated tiles
-    this.animateFire();
-    this.animateWater();
+    // Animated screens
+    this.animateScreens();
 
     // Particles
     spawnParticles(this.particles);
@@ -169,5 +138,13 @@ export class TavernScene extends Phaser.Scene {
 
     // Lighting (raw canvas overlay)
     drawLighting(this.lightCtx);
+
+    // HUD clock
+    if (state.tick % 60 === 0 && this._clockEl) {
+      const d = new Date();
+      this._clockEl.textContent =
+        String(d.getHours()).padStart(2,'0') + ':' +
+        String(d.getMinutes()).padStart(2,'0');
+    }
   }
 }

@@ -148,3 +148,20 @@ Key concepts:
 ```bash
 claude --plugin-dir ./plugin
 ```
+
+
+## Deploy 
+
+To deploy the backend : 
+
+```bash
+siteio apps deploy agentsmith-api
+```
+
+To deploy the frontend  :
+
+```bash
+cd frontend
+siteio sites deploy
+```
+

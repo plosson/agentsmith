@@ -3,13 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>The Gilded Flagon - Phaser 3</title>
+<title>Pixel Office - Phaser 3</title>
 <script src="https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
-    background: #c8d8c0;
+    background: #d8dce4;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -38,7 +38,7 @@
     position: absolute;
     top: 0; left: 0; right: 0;
     height: 36px;
-    background: linear-gradient(180deg, rgba(60,50,40,0.85) 0%, rgba(60,50,40,0.5) 80%, transparent 100%);
+    background: linear-gradient(180deg, rgba(60,70,90,0.85) 0%, rgba(60,70,90,0.5) 80%, transparent 100%);
     display: flex;
     align-items: center;
     padding: 0 12px;
@@ -51,36 +51,17 @@
     gap: 6px;
     margin-right: 20px;
   }
-  .hud-icon { font-size: 12px; }
-  .hud-text { font-size: 7px; color: #ccc; }
-  .hud-val { font-size: 8px; color: #f0c050; }
-  .hp-bar {
-    width: 60px; height: 6px;
-    background: #2a1a1a;
-    border: 1px solid #4a2a2a;
-  }
-  .hp-fill {
-    height: 100%;
-    background: linear-gradient(90deg, #c03030, #e05050);
-    width: 75%;
-  }
-  .mp-bar {
-    width: 60px; height: 6px;
-    background: #1a1a2a;
-    border: 1px solid #2a2a4a;
-  }
-  .mp-fill {
-    height: 100%;
-    background: linear-gradient(90deg, #3030c0, #5050e0);
-    width: 60%;
-  }
+  .hud-icon { font-size: 10px; }
+  .hud-text { font-size: 7px; color: #ccd0d8; }
+  .hud-val { font-size: 8px; color: #88c8f0; }
+  #hud-clock { font-size: 8px; color: #88c8f0; font-variant-numeric: tabular-nums; }
   #controls {
     position: absolute;
     bottom: 8px;
     left: 50%;
     transform: translateX(-50%);
     font-size: 6px;
-    color: rgba(80,70,60,0.5);
+    color: rgba(70,80,100,0.5);
     pointer-events: none;
     z-index: 1000;
   }
@@ -92,21 +73,11 @@
   <canvas id="light-canvas"></canvas>
   <div id="hud">
     <div class="hud-item">
-      <span class="hud-icon">&#9876;</span>
-      <span class="hud-text">Valen</span>
-    </div>
-    <div class="hud-item">
-      <span class="hud-text">HP</span>
-      <div class="hp-bar"><div class="hp-fill"></div></div>
-    </div>
-    <div class="hud-item">
-      <span class="hud-text">MP</span>
-      <div class="mp-bar"><div class="mp-fill"></div></div>
+      <span class="hud-icon">&#9881;</span>
+      <span class="hud-text">Acme Corp</span>
     </div>
     <div class="hud-item" style="margin-left:auto">
-      <span class="hud-icon">&#9775;</span>
-      <span class="hud-val">142</span>
-      <span class="hud-text">gold</span>
+      <span id="hud-clock">12:00</span>
     </div>
   </div>
   <div id="controls">ARROWS move &middot; SPACE interact</div>

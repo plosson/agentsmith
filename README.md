@@ -23,13 +23,41 @@ Claude Code → plugin hooks → local proxy → API server → shared room
 
 ### From the marketplace
 
+From the command line 
+
 ```shell
 # Step 1: Add the marketplace
-/plugin marketplace add plosson/agentsmith
+claude plugin marketplace add  plosson/agentsmith
 
-# Step 2: Install the plugin
-/plugin install agentsmith@agentsmith-marketplace
+# Step 2a: Install the plugin in the current project AND for you only  
+claude plugin install agentsmith@agentsmith-marketplace -s local
+
+# Step 2b: Install the plugin for the current project only but for everyone in the team 
+claude plugin install agentsmith@agentsmith-marketplace -s project 
+
+# Step 2c: Install the plugin for the all projects   
+claude plugin install agentsmith@agentsmith-marketplace
+
 ```
+
+## Uninstall
+
+From the command line
+
+```shell
+# Step 1a: Install the plugin in the current project AND for you only  
+claude plugin uninstall agentsmith@agentsmith-marketplace -s local
+
+# Step 1b: Install the plugin for the current project only but for everyone in the team 
+claude plugin uninstall agentsmith@agentsmith-marketplace -s project 
+
+# Step 1c: Install the plugin for the all projects   
+claude plugin uninstall agentsmith@agentsmith-marketplace
+
+# Step 2   
+claude plugin marketplace remove plosson/agentsmith
+```
+
 
 ### For development
 

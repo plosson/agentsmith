@@ -1,5 +1,5 @@
 import { T, W, H, COLS, ROWS, state } from './config.js';
-import { MAP, TORCHES, FIREPLACES } from './map.js';
+import { MAP, LIGHTS, SCREENS } from './map.js';
 
 // ── Lighting canvas setup ───────────────────────────────
 export function initLighting() {
@@ -12,60 +12,45 @@ export function initLighting() {
 export function drawLighting(lightCtx) {
   const tick = state.tick;
 
+  // Cool bright ambient (office fluorescent base)
   lightCtx.globalCompositeOperation = 'source-over';
-  lightCtx.fillStyle = '#e8ddd0';
+  lightCtx.fillStyle = '#e8e8ec';
   lightCtx.fillRect(0, 0, W, H);
 
   lightCtx.globalCompositeOperation = 'lighter';
 
-  for (const t of TORCHES) {
-    const flicker = 0.9 + Math.sin(tick * 0.12 + t.x) * 0.05 + Math.random() * 0.05;
-    const radius = 60 * flicker;
-    const grad = lightCtx.createRadialGradient(t.x, t.y, 0, t.x, t.y, radius);
-    grad.addColorStop(0, `rgba(255,220,160,${0.3 * flicker})`);
-    grad.addColorStop(0.5, `rgba(255,190,120,${0.12 * flicker})`);
+  // Ceiling lights — broad, cool-white rectangles
+  for (const l of LIGHTS) {
+    const flicker = 0.95 + Math.sin(tick * 0.005 + l.x * 0.01) * 0.03;
+    const radius = Math.max(l.w, l.h) * 0.8;
+    const grad = lightCtx.createRadialGradient(l.x, l.y, 0, l.x, l.y, radius);
+    grad.addColorStop(0, `rgba(255,255,248,${0.18 * flicker})`);
+    grad.addColorStop(0.4, `rgba(245,248,255,${0.08 * flicker})`);
     grad.addColorStop(1, 'rgba(0,0,0,0)');
     lightCtx.fillStyle = grad;
-    lightCtx.fillRect(t.x - radius, t.y - radius, radius * 2, radius * 2);
+    lightCtx.fillRect(l.x - l.w, l.y - l.h, l.w * 2, l.h * 2);
   }
 
-  for (const fp of FIREPLACES) {
-    const flicker = 0.9 + Math.sin(tick * 0.15 + fp.x * 0.1) * 0.06 + Math.random() * 0.04;
-    const radius = 100 * flicker;
-    const grad = lightCtx.createRadialGradient(fp.x, fp.y, 0, fp.x, fp.y, radius);
-    grad.addColorStop(0, `rgba(255,200,120,${0.35 * flicker})`);
-    grad.addColorStop(0.3, `rgba(255,160,80,${0.15 * flicker})`);
+  // Monitor glow — subtle blue from screens
+  for (const s of SCREENS) {
+    const pulse = 0.9 + Math.sin(tick * 0.02 + s.x * 0.05) * 0.08;
+    const grad = lightCtx.createRadialGradient(s.x, s.y, 0, s.x, s.y, 48);
+    grad.addColorStop(0, `rgba(100,160,220,${0.10 * pulse})`);
     grad.addColorStop(1, 'rgba(0,0,0,0)');
     lightCtx.fillStyle = grad;
-    lightCtx.fillRect(fp.x - radius, fp.y - radius, radius * 2, radius * 2);
+    lightCtx.fillRect(s.x - 48, s.y - 48, 96, 96);
   }
 
+  // Glass wall daylight — soft warm light
   for (let r = 0; r < ROWS; r++) {
     for (let c = 0; c < COLS; c++) {
-      if (MAP[r][c] === 14) {
-        const fx = c * T + T/2, fy = r * T + T/2;
-        const grad = lightCtx.createRadialGradient(fx, fy, 0, fx, fy, 45);
-        grad.addColorStop(0, 'rgba(140,200,255,0.2)');
+      if (MAP[r][c] === 16) {
+        const fx = c * T + T / 2, fy = r * T + T / 2;
+        const grad = lightCtx.createRadialGradient(fx, fy, 0, fx, fy, 60);
+        grad.addColorStop(0, 'rgba(255,248,230,0.10)');
         grad.addColorStop(1, 'rgba(0,0,0,0)');
         lightCtx.fillStyle = grad;
-        lightCtx.fillRect(fx - 45, fy - 45, 90, 90);
-      }
-      if (MAP[r][c] === 2) {
-        const fx = c * T + T/2, fy = r * T + T/2;
-        const grad = lightCtx.createRadialGradient(fx, fy, 0, fx, fy, 35);
-        grad.addColorStop(0, 'rgba(100,180,240,0.18)');
-        grad.addColorStop(1, 'rgba(0,0,0,0)');
-        lightCtx.fillStyle = grad;
-        lightCtx.fillRect(fx - 35, fy - 35, 70, 70);
-      }
-    }
-  }
-
-  for (let r = 0; r < ROWS; r++) {
-    for (let c = 0; c < COLS; c++) {
-      if (MAP[r][c] === 3 || MAP[r][c] === 12 || MAP[r][c] === 13) {
-        lightCtx.fillStyle = 'rgba(80,100,50,0.15)';
-        lightCtx.fillRect(c * T, r * T, T, T);
+        lightCtx.fillRect(fx - 60, fy - 60, 120, 120);
       }
     }
   }

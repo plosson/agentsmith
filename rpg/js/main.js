@@ -1,5 +1,5 @@
 import { W, H } from './config.js';
-import { TavernScene } from './scene.js';
+import { OfficeScene } from './scene.js';
 
 // ── Sizing ──────────────────────────────────────────────
 document.getElementById('game-wrapper').style.width = W + 'px';
@@ -12,8 +12,8 @@ const config = {
   height: H,
   parent: 'phaser-game',
   pixelArt: true,
-  backgroundColor: '#c8b8a0',
-  scene: TavernScene,
+  backgroundColor: '#d0d4dc',
+  scene: OfficeScene,
 };
 
 new Phaser.Game(config);
