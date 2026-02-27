@@ -60,8 +60,12 @@ fi
 # ── Step 2: Add marketplace ──────────────────────────────────────────
 
 info "Adding AgentSmith marketplace..."
-claude plugin marketplace add "$REPO"
-ok "Marketplace added"
+mp_out=$(claude plugin marketplace add "$REPO" 2>&1) || true
+if printf '%s' "$mp_out" | grep -qi "already installed"; then
+  ok "Marketplace already added"
+else
+  ok "Marketplace added"
+fi
 
 # ── Step 3: Choose install scope ─────────────────────────────────────
 
@@ -83,8 +87,12 @@ esac
 
 info "Installing for ${scope_label}..."
 # shellcheck disable=SC2086
-claude plugin install agentsmith@agentsmith-marketplace $scope_flag
-ok "Plugin installed"
+inst_out=$(claude plugin install agentsmith@agentsmith-marketplace $scope_flag 2>&1) || true
+if printf '%s' "$inst_out" | grep -qi "already installed"; then
+  ok "Plugin already installed"
+else
+  ok "Plugin installed"
+fi
 
 # ── Step 4: Username ─────────────────────────────────────────────────
 

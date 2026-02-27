@@ -18,13 +18,13 @@ Claude Code → plugin hooks → local proxy → API server → shared room
 
 ### Quick install
 
+**macOS / Linux:**
 ```bash
-# macOS / Linux
 curl -LsSf https://raw.githubusercontent.com/plosson/agentsmith/main/install.sh | sh
 ```
 
+**Windows (PowerShell):**
 ```powershell
-# Windows (PowerShell)
 irm https://raw.githubusercontent.com/plosson/agentsmith/main/install.ps1 | iex
 ```
 
