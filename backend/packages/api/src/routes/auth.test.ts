@@ -8,18 +8,6 @@ describe("Auth routes", () => {
     ctx?.db.close();
   });
 
-  describe("GET /setup", () => {
-    it("returns HTML page", async () => {
-      ctx = createTestContext();
-      const res = await ctx.app.request("/setup");
-      expect(res.status).toBe(200);
-      expect(res.headers.get("content-type")).toContain("text/html");
-      const html = await res.text();
-      expect(html).toContain("AgentSmith Setup");
-      expect(html).toContain("accounts.google.com/gsi/client");
-    });
-  });
-
   describe("POST /auth/google", () => {
     it("returns 400 when credential is missing", async () => {
       ctx = createTestContext();

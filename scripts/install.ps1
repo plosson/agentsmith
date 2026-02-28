@@ -7,41 +7,12 @@ $ErrorActionPreference = "Stop"
 $Repo = "plosson/agentsmith"
 $Marketplace = "agentsmith-marketplace"
 $Plugin = "agentsmith"
-$ConfigDir = Join-Path $env:USERPROFILE ".config\agentsmith"
-$ConfigFile = Join-Path $ConfigDir "config"
 
 # ── Helpers ──────────────────────────────────────────────────────────
 
 function Info($msg)  { Write-Host "==> $msg" -ForegroundColor Blue }
 function Ok($msg)    { Write-Host " ✓  $msg" -ForegroundColor Green }
 function Err($msg)   { Write-Host " ✗  $msg" -ForegroundColor Red }
-
-function Get-ConfigValue {
-    param([string]$Key)
-    if (Test-Path $ConfigFile) {
-        $match = Select-String -Path $ConfigFile -Pattern "^$Key=" -ErrorAction SilentlyContinue | Select-Object -First 1
-        if ($match) {
-            return ($match.Line -replace "^$Key=", "")
-        }
-    }
-    return ""
-}
-
-function Set-ConfigValue {
-    param([string]$Key, [string]$Value)
-
-    if (-not (Test-Path $ConfigDir)) { New-Item -ItemType Directory -Path $ConfigDir -Force | Out-Null }
-
-    if (Test-Path $ConfigFile) {
-        $content = Get-Content $ConfigFile -Raw
-        if ($content -match "(?m)^$Key=") {
-            $content = $content -replace "(?m)^$Key=.*", "$Key=$Value"
-            Set-Content -Path $ConfigFile -Value $content -NoNewline
-            return
-        }
-    }
-    Add-Content -Path $ConfigFile -Value "$Key=$Value"
-}
 
 # ── Banner ───────────────────────────────────────────────────────────
 
@@ -112,52 +83,32 @@ if ($instOut -match "already installed") {
     Ok "Plugin installed"
 }
 
-# ── Step 4: Username ─────────────────────────────────────────────────
+# ── Step 4: Link token ───────────────────────────────────────────────
 
-Write-Host ""
-$defaultUser = Get-ConfigValue "AGENTSMITH_USER"
-if (-not $defaultUser) {
-    $defaultUser = try { & git config user.email 2>$null } catch { "" }
-}
-if ($defaultUser) {
-    $userInput = Read-Host "  Username [$defaultUser]"
-} else {
-    $userInput = Read-Host "  Username (email)"
-}
-$user = if ($userInput) { $userInput } else { $defaultUser }
-
-if (-not $user) {
-    Err "Username is required."
+# Find link.sh from the installed plugin (take latest version)
+$pluginDir = Join-Path $env:USERPROFILE ".claude\plugins\cache\$Marketplace\$Plugin"
+$linkScript = Get-ChildItem -Path "$pluginDir\*\hooks\scripts\link.sh" -ErrorAction SilentlyContinue |
+    Sort-Object { $_.Directory.Parent.Parent.Parent.Name } |
+    Select-Object -Last 1
+if (-not $linkScript) {
+    Err "Could not find link.sh - plugin installation may have failed."
     exit 1
 }
-
-Set-ConfigValue "AGENTSMITH_USER" $user
-Ok "Username set to $user"
-
-# ── Step 5: Server URL ──────────────────────────────────────────────
+$linkScript = $linkScript.FullName
 
 Write-Host ""
-$defaultUrl = Get-ConfigValue "AGENTSMITH_SERVER_URL"
-if ($defaultUrl) {
-    $urlInput = Read-Host "  Server URL [$defaultUrl]"
-} else {
-    $urlInput = Read-Host "  Server URL"
-}
-$serverUrl = if ($urlInput) { $urlInput } else { $defaultUrl }
+Info "Visit https://agentsmith.me/#/link to get your setup token"
+Write-Host ""
+$token = (Read-Host "  Paste token").Trim()
 
-if (-not $serverUrl) {
-    Err "Server URL is required."
-    exit 1
-}
-
-Set-ConfigValue "AGENTSMITH_SERVER_URL" $serverUrl
-Ok "Server URL set to $serverUrl"
+& bash $linkScript $token
+if ($LASTEXITCODE -ne 0) { exit 1 }
 
 # ── Done ─────────────────────────────────────────────────────────────
 
 Write-Host ""
 Write-Host "  AgentSmith installed successfully!" -ForegroundColor Green
 Write-Host ""
-Write-Host "  Config: $ConfigFile"
+Write-Host "  Config: $(Join-Path $env:USERPROFILE '.config\agentsmith\config')"
 Write-Host "  Restart Claude Code to activate the plugin."
 Write-Host ""

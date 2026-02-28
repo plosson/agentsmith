@@ -32,7 +32,7 @@ print_banner() {
   local l1="" l2="" l3=""
   if [ -z "$AGENTSMITH_SERVER_URL" ]; then
     l2="not configured"
-    l3="run /smith setup"
+    l3="visit https://agentsmith.me/#/link"
   else
     local mode="${AGENTSMITH_SERVER_MODE:-remote}"
     if [ "$mode" = "remote" ]; then
@@ -102,7 +102,7 @@ fi
 if [ "$1" = "--restart" ]; then
   stop_proxy
   if [ -z "$AGENTSMITH_SERVER_URL" ]; then
-    echo "No AGENTSMITH_SERVER_URL configured. Run /smith setup."
+    echo "No AGENTSMITH_SERVER_URL configured. Visit https://agentsmith.me/#/link"
     exit 0
   fi
   start_proxy

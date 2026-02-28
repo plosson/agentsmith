@@ -2,7 +2,6 @@ import type { Database } from "bun:sqlite";
 import { Hono } from "hono";
 import type { AppEnv } from "../app";
 import { createApiKey, deleteApiKey, listByUser } from "../db/api-keys";
-import { config } from "../lib/config";
 import { NotFoundError, ValidationError } from "../lib/errors";
 import { signSessionToken, verifyGoogleToken } from "../lib/jwt";
 
@@ -40,12 +39,6 @@ export function authRoutes(db: Database): Hono<AppEnv> {
         picture: google.picture ?? null,
       },
     });
-  });
-
-  router.get("/setup", (c) => {
-    const clientId = config.google.clientId;
-    const html = setupPageHtml(clientId);
-    return c.html(html);
   });
 
   return router;
@@ -103,107 +96,3 @@ export function apiKeyRoutes(db: Database): Hono<AppEnv> {
   return router;
 }
 
-function setupPageHtml(googleClientId: string): string {
-  return `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AgentSmith Setup</title>
-  <script src="https://accounts.google.com/gsi/client" async defer></script>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <style>
-    body { font-family: system-ui, -apple-system, sans-serif; }
-  </style>
-</head>
-<body class="bg-gray-900 text-gray-100 min-h-screen flex items-center justify-center">
-  <div class="max-w-md w-full p-8">
-    <!-- Step 1: Sign in -->
-    <div id="step-login" class="text-center">
-      <h1 class="text-2xl font-bold mb-2">AgentSmith Setup</h1>
-      <p class="text-gray-400 mb-8">Sign in to generate your plugin API key.</p>
-      <div id="g_id_onload"
-           data-client_id="${googleClientId}"
-           data-callback="handleGoogleCredential"
-           data-auto_prompt="false">
-      </div>
-      <div class="g_id_signin"
-           data-type="standard"
-           data-size="large"
-           data-theme="filled_black"
-           data-text="sign_in_with"
-           data-shape="rectangular"
-           data-logo_alignment="left">
-      </div>
-    </div>
-
-    <!-- Step 2: Show API key -->
-    <div id="step-key" class="hidden text-center">
-      <h1 class="text-2xl font-bold mb-2">Your API Key</h1>
-      <p class="text-gray-400 mb-6">Add this line to <code class="bg-gray-800 px-1.5 py-0.5 rounded text-sm">~/.config/agentsmith/config</code></p>
-      <div class="bg-gray-800 border border-gray-700 rounded-lg p-4 mb-4">
-        <code id="key-display" class="text-green-400 text-sm break-all select-all"></code>
-      </div>
-      <button id="copy-btn" onclick="copyKey()" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition-colors">
-        Copy to clipboard
-      </button>
-      <p id="copy-feedback" class="text-green-400 text-sm mt-2 hidden">Copied!</p>
-    </div>
-
-    <!-- Error state -->
-    <div id="step-error" class="hidden text-center">
-      <h1 class="text-2xl font-bold mb-2 text-red-400">Something went wrong</h1>
-      <p id="error-message" class="text-gray-400 mb-6"></p>
-      <button onclick="location.reload()" class="bg-gray-700 hover:bg-gray-600 text-white px-6 py-2 rounded-lg font-medium transition-colors">
-        Try again
-      </button>
-    </div>
-  </div>
-
-  <script>
-    let apiKey = '';
-
-    async function handleGoogleCredential(response) {
-      try {
-        // Exchange Google credential for session token
-        const authRes = await fetch('/auth/google', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ credential: response.credential }),
-        });
-        if (!authRes.ok) throw new Error('Authentication failed');
-        const { token } = await authRes.json();
-
-        // Generate API key
-        const keyRes = await fetch('/api/v1/api-keys', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer ' + token,
-          },
-          body: JSON.stringify({ name: 'plugin' }),
-        });
-        if (!keyRes.ok) throw new Error('Failed to generate API key');
-        const { key } = await keyRes.json();
-
-        apiKey = key;
-        document.getElementById('key-display').textContent = 'AGENTSMITH_KEY=' + key;
-        document.getElementById('step-login').classList.add('hidden');
-        document.getElementById('step-key').classList.remove('hidden');
-      } catch (err) {
-        document.getElementById('error-message').textContent = err.message;
-        document.getElementById('step-login').classList.add('hidden');
-        document.getElementById('step-error').classList.remove('hidden');
-      }
-    }
-
-    function copyKey() {
-      navigator.clipboard.writeText('AGENTSMITH_KEY=' + apiKey).then(() => {
-        document.getElementById('copy-feedback').classList.remove('hidden');
-        setTimeout(() => document.getElementById('copy-feedback').classList.add('hidden'), 2000);
-      });
-    }
-  </script>
-</body>
-</html>`;
-}

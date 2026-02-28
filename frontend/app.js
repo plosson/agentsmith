@@ -298,6 +298,17 @@ function navigate() {
   const hash = location.hash || '#/';
   const app = document.getElementById('app');
 
+  // #/link works both logged-in and not (shows sign-in first if needed)
+  if (hash === '#/link') {
+    if (!isLoggedIn()) {
+      renderLogin(app);
+      return;
+    }
+    renderUserInfo();
+    renderLink(app);
+    return;
+  }
+
   if (!isLoggedIn()) {
     renderLogin(app);
     return;
@@ -319,6 +330,58 @@ window.addEventListener('DOMContentLoaded', navigate);
 // ---------------------------------------------------------------------------
 // Views
 // ---------------------------------------------------------------------------
+async function renderLink(app) {
+  app.innerHTML = '<p class="text-gray-400">Generating setup token...</p>';
+  try {
+    const { key } = await apiFetch('/api-keys', {
+      method: 'POST',
+      body: JSON.stringify({ name: 'plugin' }),
+    });
+
+    const payload = { server_url: API_ORIGIN, email: currentUser.email, api_key: key };
+    const token = 'asm_' + btoa(JSON.stringify(payload));
+    const masked = key.substring(0, 8) + '...';
+
+    app.innerHTML = `
+      <div class="max-w-lg mx-auto py-12">
+        <h1 class="text-2xl font-bold mb-2 text-center">Setup Token</h1>
+        <p class="text-gray-400 mb-8 text-center">Paste this token in your terminal to link AgentSmith.</p>
+
+        <div class="bg-gray-800 border border-gray-700 rounded-lg p-4 mb-4">
+          <code id="token-display" class="text-green-400 text-sm break-all select-all">${esc(token)}</code>
+        </div>
+
+        <div class="flex justify-center mb-8">
+          <button id="copy-token-btn" onclick="copyToken()" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition-colors">
+            Copy to clipboard
+          </button>
+        </div>
+        <p id="copy-token-feedback" class="text-green-400 text-sm text-center hidden mb-6">Copied!</p>
+
+        <div class="border-t border-gray-700 pt-6 space-y-2 text-sm text-gray-400">
+          <p><span class="text-gray-500">Server:</span> ${esc(API_ORIGIN)}</p>
+          <p><span class="text-gray-500">Email:</span> ${esc(currentUser.email)}</p>
+          <p><span class="text-gray-500">API key:</span> ${esc(masked)}</p>
+        </div>
+      </div>`;
+  } catch (err) {
+    app.innerHTML = `<p class="text-red-400 text-center py-12">Failed to generate token: ${esc(err.message)}</p>`;
+  }
+}
+
+function copyToken() {
+  const tokenEl = document.getElementById('token-display');
+  if (!tokenEl) return;
+  navigator.clipboard.writeText(tokenEl.textContent).then(() => {
+    const fb = document.getElementById('copy-token-feedback');
+    if (fb) {
+      fb.classList.remove('hidden');
+      setTimeout(() => fb.classList.add('hidden'), 2000);
+    }
+  });
+}
+window.copyToken = copyToken;
+
 async function renderRoomsList(app) {
   app.innerHTML = '<p class="text-gray-400">Loading rooms...</p>';
   try {

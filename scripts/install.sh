@@ -8,34 +8,12 @@ set -e
 REPO="plosson/agentsmith"
 MARKETPLACE="agentsmith-marketplace"
 PLUGIN="agentsmith"
-CONFIG_DIR="$HOME/.config/agentsmith"
-CONFIG_FILE="$CONFIG_DIR/config"
 
 # ── Helpers ──────────────────────────────────────────────────────────
 
 info()  { printf '\033[1;34m==>\033[0m %s\n' "$*"; }
 ok()    { printf '\033[1;32m ✓\033[0m  %s\n' "$*"; }
 err()   { printf '\033[1;31m ✗\033[0m  %s\n' "$*" >&2; }
-
-# Read a KEY from the config file (returns empty if missing)
-get_config() {
-  key="$1"
-  if [ -f "$CONFIG_FILE" ]; then
-    grep "^${key}=" "$CONFIG_FILE" 2>/dev/null | head -1 | cut -d'=' -f2-
-  fi
-}
-
-# Write or update a KEY=VALUE in the config file
-set_config() {
-  key="$1" value="$2"
-  mkdir -p "$CONFIG_DIR"
-  if [ -f "$CONFIG_FILE" ] && grep -q "^${key}=" "$CONFIG_FILE" 2>/dev/null; then
-    tmp="$CONFIG_FILE.tmp.$$"
-    sed "s|^${key}=.*|${key}=${value}|" "$CONFIG_FILE" > "$tmp" && mv "$tmp" "$CONFIG_FILE"
-  else
-    echo "${key}=${value}" >> "$CONFIG_FILE"
-  fi
-}
 
 # ── Banner ───────────────────────────────────────────────────────────
 
@@ -104,52 +82,29 @@ else
   ok "Plugin installed"
 fi
 
-# ── Step 4: Username ─────────────────────────────────────────────────
+# ── Step 4: Link token ───────────────────────────────────────────────
 
-printf '\n'
-default_user=$(get_config "AGENTSMITH_USER")
-[ -z "$default_user" ] && default_user=$(git config user.email 2>/dev/null || echo "")
-if [ -n "$default_user" ]; then
-  printf '  Username [%s]: ' "$default_user"
-else
-  printf '  Username (email): '
-fi
-read -r user_input < /dev/tty
-user="${user_input:-$default_user}"
-
-if [ -z "$user" ]; then
-  err "Username is required."
+# Find link.sh from the installed plugin (take latest version)
+LINK_SCRIPT=$(ls -d "$HOME/.claude/plugins/cache/${MARKETPLACE}/${PLUGIN}"/*/hooks/scripts/link.sh \
+              2>/dev/null | sort -V | tail -1)
+if [ -z "$LINK_SCRIPT" ]; then
+  err "Could not find link.sh — plugin installation may have failed."
   exit 1
 fi
 
-set_config "AGENTSMITH_USER" "$user"
-ok "Username set to ${user}"
-
-# ── Step 5: Server URL ──────────────────────────────────────────────
-
 printf '\n'
-default_url=$(get_config "AGENTSMITH_SERVER_URL")
-if [ -n "$default_url" ]; then
-  printf '  Server URL [%s]: ' "$default_url"
-else
-  printf '  Server URL: '
-fi
-read -r url_input < /dev/tty
-server_url="${url_input:-$default_url}"
+info "Visit https://agentsmith.me/#/link to get your setup token"
+printf '\n'
+printf '  Paste token: '
+read -r token < /dev/tty
 
-if [ -z "$server_url" ]; then
-  err "Server URL is required."
-  exit 1
-fi
-
-set_config "AGENTSMITH_SERVER_URL" "$server_url"
-ok "Server URL set to ${server_url}"
+sh "$LINK_SCRIPT" "$token"
 
 # ── Done ─────────────────────────────────────────────────────────────
 
 printf '\n'
 printf '\033[1;32m  AgentSmith installed successfully!\033[0m\n'
 printf '\n'
-printf '  Config: %s\n' "$CONFIG_FILE"
+printf '  Config: %s\n' "$HOME/.config/agentsmith/config"
 printf '  Restart Claude Code to activate the plugin.\n'
 printf '\n'
