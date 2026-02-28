@@ -9,6 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Fira+Mono:wght@400;500&display=swap" rel="stylesheet">
 
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
@@ -25,9 +26,12 @@
 </head>
 <body class="font-sans bg-gray-900 text-gray-100 min-h-screen">
   <header class="border-b border-gray-800 bg-gray-900 px-6 py-4">
-    <div class="flex items-center gap-3">
-      <a href="#/" class="text-lg font-semibold tracking-tight text-gray-100">AgentSmith</a>
-      <span class="text-sm text-gray-500">Canvas</span>
+    <div class="flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <a href="#/" class="text-lg font-semibold tracking-tight text-gray-100">AgentSmith</a>
+        <span class="text-sm text-gray-500">Canvas</span>
+      </div>
+      <div id="user-info" class="flex items-center gap-3"></div>
     </div>
   </header>
   <main id="app" class="max-w-5xl mx-auto px-6 py-8"></main>

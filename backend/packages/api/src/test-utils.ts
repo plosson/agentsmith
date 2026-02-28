@@ -3,7 +3,11 @@ import type { Hono } from "hono";
 import type { AppEnv } from "./app";
 import { createApp } from "./app";
 import { migrate } from "./db/migrate";
+import { config } from "./lib/config";
 import { EventBus } from "./lib/event-bus";
+import { signSessionToken } from "./lib/jwt";
+
+const TEST_JWT_SECRET = "test-jwt-secret-for-agentsmith";
 
 export interface TestContext {
   db: Database;
@@ -12,6 +16,8 @@ export interface TestContext {
 }
 
 export function createTestContext(): TestContext {
+  config.jwtSecret = TEST_JWT_SECRET;
+
   const db = new Database(":memory:");
   db.exec("PRAGMA foreign_keys = ON");
   migrate(db);
@@ -21,10 +27,11 @@ export function createTestContext(): TestContext {
   return { db, app, bus };
 }
 
-export function makeToken(sub: string, email: string): string {
-  return btoa(JSON.stringify({ sub, email }));
+export async function makeToken(sub: string, email: string): Promise<string> {
+  config.jwtSecret = TEST_JWT_SECRET;
+  return signSessionToken(sub, email);
 }
 
-export function authHeader(sub: string, email: string): Record<string, string> {
-  return { Authorization: `Bearer ${makeToken(sub, email)}` };
+export async function authHeader(sub: string, email: string): Promise<Record<string, string>> {
+  return { Authorization: `Bearer ${await makeToken(sub, email)}` };
 }

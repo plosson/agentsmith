@@ -3,11 +3,15 @@ import { afterEach, describe, expect, it } from "bun:test";
 import { Hono } from "hono";
 import type { AppEnv } from "../app";
 import { createApp } from "../app";
+import { createApiKey } from "../db/api-keys";
 import { migrate } from "../db/migrate";
+import { upsertUser } from "../db/users";
 import { config } from "../lib/config";
 import { authHeader } from "../test-utils";
 import { authMiddleware } from "./auth";
 import { errorHandler } from "./error";
+
+const TEST_JWT_SECRET = "test-jwt-secret-for-agentsmith";
 
 describe("auth middleware", () => {
   let db: Database;
@@ -16,7 +20,8 @@ describe("auth middleware", () => {
     db?.close();
   });
 
-  function createApp() {
+  function createTestApp() {
+    config.jwtSecret = TEST_JWT_SECRET;
     db = new Database(":memory:");
     db.exec("PRAGMA foreign_keys = ON");
     migrate(db);
@@ -33,23 +38,23 @@ describe("auth middleware", () => {
   }
 
   it("returns 401 when no Authorization header", async () => {
-    const app = createApp();
+    const app = createTestApp();
     const res = await app.request("/test");
     expect(res.status).toBe(401);
   });
 
-  it("returns 401 when token is not valid base64 JSON", async () => {
-    const app = createApp();
+  it("returns 401 when token is not a valid JWT", async () => {
+    const app = createTestApp();
     const res = await app.request("/test", {
-      headers: { Authorization: "Bearer notvalidbase64!!!" },
+      headers: { Authorization: "Bearer notavalidjwt" },
     });
     expect(res.status).toBe(401);
   });
 
-  it("injects userId and userEmail from valid token", async () => {
-    const app = createApp();
+  it("injects userId and userEmail from valid JWT", async () => {
+    const app = createTestApp();
     const res = await app.request("/test", {
-      headers: authHeader("user-1", "alice@test.com"),
+      headers: await authHeader("user-1", "alice@test.com"),
     });
     expect(res.status).toBe(200);
     const json = await res.json();
@@ -57,15 +62,44 @@ describe("auth middleware", () => {
   });
 
   it("upserts user into database on first request", async () => {
-    const app = createApp();
+    const app = createTestApp();
     await app.request("/test", {
-      headers: authHeader("user-1", "alice@test.com"),
+      headers: await authHeader("user-1", "alice@test.com"),
     });
     const row = db.query("SELECT * FROM users WHERE id = ?").get("user-1") as {
       email: string;
     } | null;
     expect(row).toBeTruthy();
     expect(row?.email).toBe("alice@test.com");
+  });
+
+  it("authenticates with a valid API key", async () => {
+    const app = createTestApp();
+    // Create a user first, then an API key
+    upsertUser(db, "apikey-user", "apiuser@test.com");
+    const { rawKey } = await createApiKey(db, "apikey-user", "test-key");
+
+    const res = await app.request("/test", {
+      headers: { Authorization: `Bearer ${rawKey}` },
+    });
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json).toEqual({ userId: "apikey-user", userEmail: "apiuser@test.com" });
+  });
+
+  it("updates last_used_at when API key is used", async () => {
+    const app = createTestApp();
+    upsertUser(db, "apikey-user", "apiuser@test.com");
+    const { id, rawKey } = await createApiKey(db, "apikey-user", "test-key");
+
+    await app.request("/test", {
+      headers: { Authorization: `Bearer ${rawKey}` },
+    });
+
+    const row = db.query("SELECT last_used_at FROM api_keys WHERE id = ?").get(id) as {
+      last_used_at: number;
+    };
+    expect(row.last_used_at).toBeGreaterThan(0);
   });
 });
 

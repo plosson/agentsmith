@@ -8,6 +8,7 @@
     "@agentsmith/shared": "workspace:*",
     "@hono/zod-validator": "^0.7.6",
     "hono": "^4.11.4",
+    "jose": "^6.1.3",
     "ulid": "^3.0.2"
   }
 }

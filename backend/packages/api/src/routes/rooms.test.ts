@@ -17,7 +17,7 @@ describe("Room routes", () => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...authHeader("plugin-user-1", "alice@test.com"),
+          ...(await authHeader("plugin-user-1", "alice@test.com")),
         },
         body: JSON.stringify({ id: "my-project" }),
       });
@@ -33,7 +33,7 @@ describe("Room routes", () => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...authHeader("plugin-user-1", "alice@test.com"),
+          ...(await authHeader("plugin-user-1", "alice@test.com")),
         },
         body: JSON.stringify({ id: "INVALID NAME!" }),
       });
@@ -44,7 +44,7 @@ describe("Room routes", () => {
       ctx = createTestContext();
       const headers = {
         "Content-Type": "application/json",
-        ...authHeader("plugin-user-1", "alice@test.com"),
+        ...(await authHeader("plugin-user-1", "alice@test.com")),
       };
       await ctx.app.request("/api/v1/rooms", {
         method: "POST",
@@ -66,7 +66,7 @@ describe("Room routes", () => {
     it("returns empty array when no rooms", async () => {
       ctx = createTestContext();
       const res = await ctx.app.request("/api/v1/rooms", {
-        headers: authHeader("web-user-1", "bob@test.com"),
+        headers: await authHeader("web-user-1", "bob@test.com"),
       });
       expect(res.status).toBe(200);
       const json = await res.json();
@@ -77,7 +77,7 @@ describe("Room routes", () => {
       ctx = createTestContext();
       const headers = {
         "Content-Type": "application/json",
-        ...authHeader("plugin-user-1", "alice@test.com"),
+        ...(await authHeader("plugin-user-1", "alice@test.com")),
       };
       await ctx.app.request("/api/v1/rooms", {
         method: "POST",
@@ -85,7 +85,7 @@ describe("Room routes", () => {
         body: JSON.stringify({ id: "my-project" }),
       });
       const res = await ctx.app.request("/api/v1/rooms", {
-        headers: authHeader("web-user-1", "bob@test.com"),
+        headers: await authHeader("web-user-1", "bob@test.com"),
       });
       expect(res.status).toBe(200);
       const json = await res.json();
@@ -102,13 +102,13 @@ describe("Room routes", () => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...authHeader("plugin-user-1", "alice@test.com"),
+          ...(await authHeader("plugin-user-1", "alice@test.com")),
         },
         body: JSON.stringify({ id: "my-project" }),
       });
       const room = await createRes.json();
       const res = await ctx.app.request(`/api/v1/rooms/${room.id}`, {
-        headers: authHeader("web-user-1", "bob@test.com"),
+        headers: await authHeader("web-user-1", "bob@test.com"),
       });
       expect(res.status).toBe(200);
       const json = await res.json();
@@ -119,7 +119,7 @@ describe("Room routes", () => {
     it("returns 404 for non-existent room", async () => {
       ctx = createTestContext();
       const res = await ctx.app.request("/api/v1/rooms/nonexistent", {
-        headers: authHeader("web-user-1", "bob@test.com"),
+        headers: await authHeader("web-user-1", "bob@test.com"),
       });
       expect(res.status).toBe(404);
     });

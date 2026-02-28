@@ -6,6 +6,7 @@ import { EventBus } from "./lib/event-bus";
 import { authMiddleware } from "./middleware/auth";
 import { errorHandler } from "./middleware/error";
 import { requestLogger } from "./middleware/logger";
+import { apiKeyRoutes, authRoutes } from "./routes/auth";
 import { eventRoutes } from "./routes/events";
 import { presenceRoutes } from "./routes/presence";
 import { roomRoutes } from "./routes/rooms";
@@ -34,6 +35,9 @@ export function createApp(db: Database, bus?: EventBus): Hono<AppEnv> {
     });
   });
 
+  // Public auth routes (no auth middleware)
+  app.route("/", authRoutes(db));
+
   if (config.authDisabled) {
     app.use("/api/*", async (c, next) => {
       const userId = "anonymous";
@@ -52,6 +56,7 @@ export function createApp(db: Database, bus?: EventBus): Hono<AppEnv> {
   app.route("/api/v1", roomRoutes(db));
   app.route("/api/v1", eventRoutes(db, eventBus));
   app.route("/api/v1", presenceRoutes(db));
+  app.route("/api/v1", apiKeyRoutes(db));
 
   return app;
 }

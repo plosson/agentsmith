@@ -29,8 +29,8 @@ cleanup() {
   if [ -n "${WEB_PID:-}" ]; then
     kill "$WEB_PID" 2>/dev/null || true
   fi
-  echo "Web server stopped. Docker container '$CONTAINER_NAME' left running."
-  echo "  Stop it with: docker stop $CONTAINER_NAME"
+  docker stop "$CONTAINER_NAME" >/dev/null 2>&1 || true
+  echo "Stopped."
 }
 trap cleanup EXIT
 
@@ -51,11 +51,15 @@ if [ "$CLEAN" = true ]; then
   rm -rf "$DATA_DIR"
 fi
 mkdir -p "$DATA_DIR"
+JWT_SECRET="${JWT_SECRET:-local-dev-jwt-secret-do-not-use-in-prod}"
+GOOGLE_CLIENT_ID="${GOOGLE_CLIENT_ID:-981559040299-kvtuldub9dklomij0se0fgr5ba6f8cpg.apps.googleusercontent.com}"
+
 docker run -d \
   --name "$CONTAINER_NAME" \
   -p "$API_PORT:3000" \
   -v "$DATA_DIR:/data" \
-  -e AUTH_DISABLED=true \
+  -e JWT_SECRET="$JWT_SECRET" \
+  -e GOOGLE_CLIENT_ID="$GOOGLE_CLIENT_ID" \
   agentsmith-api >/dev/null
 
 # Wait for API to be ready

@@ -1,21 +1,56 @@
 // ---------------------------------------------------------------------------
 // Config
 // ---------------------------------------------------------------------------
-const API_BASE = 'https://agentsmith-api.axel.siteio.me/api/v1';
+const IS_LOCAL = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+const API_ORIGIN = IS_LOCAL ? `http://${location.hostname}:6001` : 'https://agentsmith-api.axel.siteio.me';
+const API_BASE = `${API_ORIGIN}/api/v1`;
+const AUTH_BASE = API_ORIGIN;
+const GOOGLE_CLIENT_ID = '981559040299-kvtuldub9dklomij0se0fgr5ba6f8cpg.apps.googleusercontent.com';
 const POLL_INTERVAL = 3000;
 
-const DEV_TOKEN = btoa(JSON.stringify({ sub: 'canvas-dev|1', email: 'dev@canvas.local' }));
+// ---------------------------------------------------------------------------
+// Auth state
+// ---------------------------------------------------------------------------
+let authToken = localStorage.getItem('agentsmith_token');
+let currentUser = JSON.parse(localStorage.getItem('agentsmith_user') || 'null');
+
+function setAuth(token, user) {
+  authToken = token;
+  currentUser = user;
+  localStorage.setItem('agentsmith_token', token);
+  localStorage.setItem('agentsmith_user', JSON.stringify(user));
+  renderUserInfo();
+}
+
+function clearAuth() {
+  authToken = null;
+  currentUser = null;
+  localStorage.removeItem('agentsmith_token');
+  localStorage.removeItem('agentsmith_user');
+  renderUserInfo();
+  navigate();
+}
+
+function isLoggedIn() {
+  return !!authToken;
+}
 
 // ---------------------------------------------------------------------------
 // API client
 // ---------------------------------------------------------------------------
-async function apiFetch(path) {
+async function apiFetch(path, options = {}) {
   const res = await fetch(`${API_BASE}${path}`, {
+    ...options,
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${DEV_TOKEN}`,
+      Authorization: `Bearer ${authToken}`,
+      ...(options.headers || {}),
     },
   });
+  if (res.status === 401) {
+    clearAuth();
+    throw new Error('Session expired');
+  }
   if (!res.ok) throw new Error(`API ${res.status}: ${await res.text()}`);
   return res.json();
 }
@@ -26,6 +61,29 @@ const api = {
   getEvents: (roomId, since, limit = 50) =>
     apiFetch(`/rooms/${roomId}/events?since=${since}&limit=${limit}`),
 };
+
+// ---------------------------------------------------------------------------
+// Google Sign-In callback
+// ---------------------------------------------------------------------------
+async function handleGoogleCredential(response) {
+  try {
+    const res = await fetch(`${AUTH_BASE}/auth/google`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ credential: response.credential }),
+    });
+    if (!res.ok) throw new Error('Authentication failed');
+    const { token, user } = await res.json();
+    setAuth(token, user);
+    navigate();
+  } catch (err) {
+    const app = document.getElementById('app');
+    app.innerHTML = `<p class="text-red-400">Sign-in failed: ${esc(err.message)}</p>`;
+  }
+}
+
+// Make it available globally for Google callback
+window.handleGoogleCredential = handleGoogleCredential;
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -94,8 +152,13 @@ function describeEvent(event) {
   return event.type;
 }
 
+function displayName(userId) {
+  const name = userId.split('@')[0];
+  return name || userId;
+}
+
 // ---------------------------------------------------------------------------
-// Components (pure functions → HTML strings)
+// Components (pure functions -> HTML strings)
 // ---------------------------------------------------------------------------
 function signalBadgeHtml(signal) {
   const color = signalColor(signal);
@@ -114,11 +177,6 @@ function sessionBadgeHtml(sessionId, size = 'lg') {
     return `<span class="absolute -top-1 -right-2 px-1 py-0.5 rounded-full bg-gray-700 border border-gray-600 text-[9px] font-mono font-medium text-gray-300 leading-none">${esc(tag)}</span>`;
   }
   return `<span class="absolute -top-0.5 -right-1.5 px-0.5 rounded-full bg-gray-700 border border-gray-600 text-[7px] font-mono font-medium text-gray-300 leading-none">${esc(tag)}</span>`;
-}
-
-function displayName(userId) {
-  const name = userId.split('@')[0];
-  return name || userId;
 }
 
 function avatarHtml(session) {
@@ -156,6 +214,67 @@ function eventItemHtml(event) {
 }
 
 // ---------------------------------------------------------------------------
+// User info in header
+// ---------------------------------------------------------------------------
+function renderUserInfo() {
+  const el = document.getElementById('user-info');
+  if (!el) return;
+  if (!isLoggedIn() || !currentUser) {
+    el.innerHTML = '';
+    return;
+  }
+  const name = currentUser.name || currentUser.email;
+  el.innerHTML = `
+    <span class="text-sm text-gray-400">${esc(name)}</span>
+    <button onclick="clearAuth()" class="text-xs text-gray-500 hover:text-gray-300 border border-gray-700 rounded px-2 py-1">
+      Sign out
+    </button>`;
+}
+
+// ---------------------------------------------------------------------------
+// Login view
+// ---------------------------------------------------------------------------
+function renderLogin(app) {
+  app.innerHTML = `
+    <div class="flex flex-col items-center justify-center py-24">
+      <h2 class="text-xl font-semibold mb-2">Welcome to AgentSmith</h2>
+      <p class="text-gray-400 mb-8">Sign in with your Google account to continue.</p>
+      <div id="g_id_onload"
+           data-client_id="${GOOGLE_CLIENT_ID}"
+           data-callback="handleGoogleCredential"
+           data-auto_prompt="false">
+      </div>
+      <div class="g_id_signin"
+           data-type="standard"
+           data-size="large"
+           data-theme="filled_black"
+           data-text="sign_in_with"
+           data-shape="rectangular"
+           data-logo_alignment="left">
+      </div>
+    </div>`;
+
+  // Re-initialize Google button if the GSI library is already loaded
+  if (window.google?.accounts?.id) {
+    google.accounts.id.initialize({
+      client_id: GOOGLE_CLIENT_ID,
+      callback: handleGoogleCredential,
+    });
+    const btnContainer = app.querySelector('.g_id_signin');
+    if (btnContainer) {
+      google.accounts.id.renderButton(btnContainer, {
+        type: 'standard',
+        size: 'large',
+        theme: 'filled_black',
+        text: 'sign_in_with',
+        shape: 'rectangular',
+        logo_alignment: 'left',
+      });
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Router
 // ---------------------------------------------------------------------------
 let pollTimers = [];
@@ -178,6 +297,13 @@ function navigate() {
   clearPolling();
   const hash = location.hash || '#/';
   const app = document.getElementById('app');
+
+  if (!isLoggedIn()) {
+    renderLogin(app);
+    return;
+  }
+
+  renderUserInfo();
 
   const roomMatch = hash.match(/^#\/rooms\/(.+)$/);
   if (roomMatch) {
@@ -307,7 +433,7 @@ async function renderRoomDetail(app, roomId) {
   }
 
   function connectEventStream(room, since) {
-    const url = `${API_BASE}/rooms/${encodeURIComponent(room)}/events/stream?since=${since}&token=${DEV_TOKEN}`;
+    const url = `${API_BASE}/rooms/${encodeURIComponent(room)}/events/stream?since=${since}&token=${authToken}`;
     const es = new EventSource(url);
     activeEventSource = es;
     stopEventPolling();

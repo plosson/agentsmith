@@ -11,7 +11,7 @@ describe("Presence route", () => {
   async function createRoom(name: string, sub: string, email: string) {
     const res = await ctx.app.request("/api/v1/rooms", {
       method: "POST",
-      headers: { "Content-Type": "application/json", ...authHeader(sub, email) },
+      headers: { "Content-Type": "application/json", ...(await authHeader(sub, email)) },
       body: JSON.stringify({ id: name }),
     });
     return res.json();
@@ -26,7 +26,7 @@ describe("Presence route", () => {
   ) {
     return ctx.app.request(`/api/v1/rooms/${roomId}/events`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", ...authHeader(sub, email) },
+      headers: { "Content-Type": "application/json", ...(await authHeader(sub, email)) },
       body: JSON.stringify({
         room_id: roomId,
         type,
@@ -48,7 +48,7 @@ describe("Presence route", () => {
       await emitEvent(room.id, "plugin-1", "alice@test.com", "sess-1", "hook.Stop");
 
       const res = await ctx.app.request(`/api/v1/rooms/${room.id}/presence`, {
-        headers: authHeader("web-user-1", "bob@test.com"),
+        headers: await authHeader("web-user-1", "bob@test.com"),
       });
       expect(res.status).toBe(200);
       const json = await res.json();
@@ -67,7 +67,7 @@ describe("Presence route", () => {
       await emitEvent(room.id, "plugin-2", "bob@test.com", "sess-2", "hook.PreToolUse");
 
       const res = await ctx.app.request(`/api/v1/rooms/${room.id}/presence`, {
-        headers: authHeader("web-user-1", "viewer@test.com"),
+        headers: await authHeader("web-user-1", "viewer@test.com"),
       });
       const json = await res.json();
       expect(json.sessions).toHaveLength(2);
@@ -78,7 +78,7 @@ describe("Presence route", () => {
       const room = await createRoom("test-room", "plugin-1", "alice@test.com");
 
       const res = await ctx.app.request(`/api/v1/rooms/${room.id}/presence`, {
-        headers: authHeader("web-user-1", "bob@test.com"),
+        headers: await authHeader("web-user-1", "bob@test.com"),
       });
       expect(res.status).toBe(200);
       const json = await res.json();
@@ -110,7 +110,7 @@ describe("Presence route", () => {
         );
 
       const res = await ctx.app.request(`/api/v1/rooms/${room.id}/presence`, {
-        headers: authHeader("web-user-1", "bob@test.com"),
+        headers: await authHeader("web-user-1", "bob@test.com"),
       });
       const json = await res.json();
       expect(json.sessions).toHaveLength(0);

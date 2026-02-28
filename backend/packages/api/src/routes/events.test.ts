@@ -11,7 +11,7 @@ describe("Event routes", () => {
   async function createRoom(name: string, sub: string, email: string) {
     const res = await ctx.app.request("/api/v1/rooms", {
       method: "POST",
-      headers: { "Content-Type": "application/json", ...authHeader(sub, email) },
+      headers: { "Content-Type": "application/json", ...(await authHeader(sub, email)) },
       body: JSON.stringify({ id: name }),
     });
     return res.json();
@@ -41,7 +41,7 @@ describe("Event routes", () => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...authHeader("plugin-1", "alice@test.com"),
+          ...(await authHeader("plugin-1", "alice@test.com")),
         },
         body: JSON.stringify(makeEvent(room.id)),
       });
@@ -60,12 +60,12 @@ describe("Event routes", () => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...authHeader("plugin-1", "alice@test.com"),
+          ...(await authHeader("plugin-1", "alice@test.com")),
         },
         body: JSON.stringify(makeEvent(room.id)),
       });
       const detailRes = await ctx.app.request(`/api/v1/rooms/${room.id}`, {
-        headers: authHeader("plugin-1", "alice@test.com"),
+        headers: await authHeader("plugin-1", "alice@test.com"),
       });
       const detail = await detailRes.json();
       expect(detail.members).toHaveLength(1);
@@ -78,7 +78,7 @@ describe("Event routes", () => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...authHeader("plugin-1", "alice@test.com"),
+          ...(await authHeader("plugin-1", "alice@test.com")),
         },
         body: JSON.stringify(makeEvent("nonexistent")),
       });
@@ -92,7 +92,7 @@ describe("Event routes", () => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...authHeader("plugin-1", "alice@test.com"),
+          ...(await authHeader("plugin-1", "alice@test.com")),
         },
         body: JSON.stringify(makeEvent(room.id, { type: "" })),
       });
@@ -106,7 +106,7 @@ describe("Event routes", () => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...authHeader("plugin-1", "alice@test.com"),
+          ...(await authHeader("plugin-1", "alice@test.com")),
         },
         body: JSON.stringify(makeEvent("wrong-room-id")),
       });
@@ -120,7 +120,7 @@ describe("Event routes", () => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...authHeader("plugin-1", "alice@test.com"),
+          ...(await authHeader("plugin-1", "alice@test.com")),
         },
         body: JSON.stringify(makeEvent(room.id, { payload: { data: "x".repeat(70_000) } })),
       });
@@ -140,7 +140,7 @@ describe("Event routes", () => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...authHeader("web-1", "bob@test.com"),
+          ...(await authHeader("web-1", "bob@test.com")),
         },
         body: JSON.stringify(
           makeEvent(room.id, {
@@ -158,7 +158,7 @@ describe("Event routes", () => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...authHeader("plugin-1", "alice@test.com"),
+          ...(await authHeader("plugin-1", "alice@test.com")),
         },
         body: JSON.stringify(
           makeEvent(room.id, {
@@ -181,7 +181,7 @@ describe("Event routes", () => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...authHeader("web-1", "bob@test.com"),
+          ...(await authHeader("web-1", "bob@test.com")),
         },
         body: JSON.stringify(
           makeEvent(room.id, {
@@ -199,7 +199,7 @@ describe("Event routes", () => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...authHeader("plugin-1", "alice@test.com"),
+          ...(await authHeader("plugin-1", "alice@test.com")),
         },
         body: JSON.stringify(makeEvent(room.id)),
       });
@@ -209,7 +209,7 @@ describe("Event routes", () => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...authHeader("plugin-1", "alice@test.com"),
+          ...(await authHeader("plugin-1", "alice@test.com")),
         },
         body: JSON.stringify(makeEvent(room.id)),
       });
@@ -226,7 +226,7 @@ describe("Event routes", () => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...authHeader("web-1", "bob@test.com"),
+          ...(await authHeader("web-1", "bob@test.com")),
         },
         body: JSON.stringify(
           makeEvent(room.id, {
@@ -244,7 +244,7 @@ describe("Event routes", () => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...authHeader("plugin-1", "alice@test.com"),
+          ...(await authHeader("plugin-1", "alice@test.com")),
         },
         body: JSON.stringify(
           makeEvent(room.id, {
@@ -260,7 +260,7 @@ describe("Event routes", () => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...authHeader("plugin-1", "alice@test.com"),
+          ...(await authHeader("plugin-1", "alice@test.com")),
         },
         body: JSON.stringify(
           makeEvent(room.id, {
@@ -282,7 +282,7 @@ describe("Event routes", () => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...authHeader("plugin-1", "alice@test.com"),
+          ...(await authHeader("plugin-1", "alice@test.com")),
         },
         body: JSON.stringify(makeEvent(room.id)),
       });
@@ -292,7 +292,7 @@ describe("Event routes", () => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...authHeader("web-1", "bob@test.com"),
+          ...(await authHeader("web-1", "bob@test.com")),
         },
         body: JSON.stringify(
           makeEvent(room.id, {
@@ -307,7 +307,7 @@ describe("Event routes", () => {
 
       // Poll should only return the broadcast event
       const res = await ctx.app.request(`/api/v1/rooms/${room.id}/events?since=0&limit=50`, {
-        headers: authHeader("web-user-1", "viewer@test.com"),
+        headers: await authHeader("web-user-1", "viewer@test.com"),
       });
       const json = await res.json();
       expect(json.events).toHaveLength(1);
@@ -325,13 +325,13 @@ describe("Event routes", () => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...authHeader("plugin-1", "alice@test.com"),
+          ...(await authHeader("plugin-1", "alice@test.com")),
         },
         body: JSON.stringify(makeEvent(room.id)),
       });
 
       const res = await ctx.app.request(`/api/v1/rooms/${room.id}/events?since=0&limit=50`, {
-        headers: authHeader("web-user-1", "bob@test.com"),
+        headers: await authHeader("web-user-1", "bob@test.com"),
       });
       expect(res.status).toBe(200);
       const json = await res.json();
@@ -346,7 +346,7 @@ describe("Event routes", () => {
       ctx = createTestContext();
       const room = await createRoom("test-room", "plugin-1", "alice@test.com");
       const res = await ctx.app.request(`/api/v1/rooms/${room.id}/events`, {
-        headers: authHeader("web-user-1", "bob@test.com"),
+        headers: await authHeader("web-user-1", "bob@test.com"),
       });
       expect(res.status).toBe(400);
     });
@@ -356,7 +356,7 @@ describe("Event routes", () => {
       const room = await createRoom("test-room", "plugin-1", "alice@test.com");
       const res = await ctx.app.request(
         `/api/v1/rooms/${room.id}/events?since=${Date.now()}&limit=50`,
-        { headers: authHeader("web-user-1", "bob@test.com") },
+        { headers: await authHeader("web-user-1", "bob@test.com") },
       );
       expect(res.status).toBe(200);
       const json = await res.json();
@@ -370,14 +370,14 @@ describe("Event routes", () => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...authHeader("plugin-1", "alice@test.com"),
+          ...(await authHeader("plugin-1", "alice@test.com")),
         },
         body: JSON.stringify(makeEvent(room.id)),
       });
 
       const res = await ctx.app.request(
         `/api/v1/rooms/${room.id}/events?since=0&limit=50&format=claude_code_v27`,
-        { headers: authHeader("web-user-1", "bob@test.com") },
+        { headers: await authHeader("web-user-1", "bob@test.com") },
       );
       expect(res.status).toBe(200);
       const json = await res.json();
@@ -412,7 +412,7 @@ describe("Event routes", () => {
       await createRoom("test-room", "plugin-1", "alice@test.com");
 
       const res = await ctx.app.request("/api/v1/rooms/test-room/events/stream?since=0", {
-        headers: authHeader("web-1", "bob@test.com"),
+        headers: await authHeader("web-1", "bob@test.com"),
       });
       expect(res.status).toBe(200);
       expect(res.headers.get("content-type")).toContain("text/event-stream");
@@ -427,13 +427,13 @@ describe("Event routes", () => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...authHeader("plugin-1", "alice@test.com"),
+          ...(await authHeader("plugin-1", "alice@test.com")),
         },
         body: JSON.stringify(makeEvent(room.id)),
       });
 
       const res = await ctx.app.request(`/api/v1/rooms/${room.id}/events/stream?since=0`, {
-        headers: authHeader("web-1", "bob@test.com"),
+        headers: await authHeader("web-1", "bob@test.com"),
       });
 
       // Read a chunk from the stream
@@ -458,7 +458,7 @@ describe("Event routes", () => {
       await createRoom("test-room", "plugin-1", "alice@test.com");
 
       const res = await ctx.app.request("/api/v1/rooms/test-room/events/stream?since=0", {
-        headers: authHeader("web-1", "bob@test.com"),
+        headers: await authHeader("web-1", "bob@test.com"),
       });
 
       expect(res.body).toBeDefined();
@@ -496,7 +496,7 @@ describe("Event routes", () => {
 
       // Connect SSE stream
       const sseRes = await ctx.app.request(`/api/v1/rooms/${room.id}/events/stream?since=0`, {
-        headers: authHeader("web-1", "bob@test.com"),
+        headers: await authHeader("web-1", "bob@test.com"),
       });
       expect(sseRes.body).toBeDefined();
       const reader = (sseRes.body as ReadableStream<Uint8Array>).getReader();
@@ -506,7 +506,7 @@ describe("Event routes", () => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...authHeader("plugin-1", "alice@test.com"),
+          ...(await authHeader("plugin-1", "alice@test.com")),
         },
         body: JSON.stringify(makeEvent(room.id, { payload: { signal: "live-test" } })),
       });
@@ -532,7 +532,7 @@ describe("Event routes", () => {
 
       // Connect SSE
       const sseRes = await ctx.app.request("/api/v1/rooms/test-room/events/stream?since=0", {
-        headers: authHeader("web-1", "bob@test.com"),
+        headers: await authHeader("web-1", "bob@test.com"),
       });
       expect(sseRes.body).toBeDefined();
       const reader = (sseRes.body as ReadableStream<Uint8Array>).getReader();
@@ -544,7 +544,7 @@ describe("Event routes", () => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...authHeader("web-1", "bob@test.com"),
+          ...(await authHeader("web-1", "bob@test.com")),
         },
         body: JSON.stringify(
           makeEvent("test-room", {
@@ -561,7 +561,7 @@ describe("Event routes", () => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...authHeader("plugin-1", "alice@test.com"),
+          ...(await authHeader("plugin-1", "alice@test.com")),
         },
         body: JSON.stringify(makeEvent("test-room", { payload: { marker: true } })),
       });
@@ -584,7 +584,7 @@ describe("Event routes", () => {
       ctx = createTestContext();
       await createRoom("test-room", "plugin-1", "alice@test.com");
 
-      const token = makeToken("web-1", "bob@test.com");
+      const token = await makeToken("web-1", "bob@test.com");
       const res = await ctx.app.request(
         `/api/v1/rooms/test-room/events/stream?since=0&token=${token}`,
       );
