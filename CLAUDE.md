@@ -1,7 +1,8 @@
 # AgentSmith
 
 Room-scoped event fabric connecting local Claude Code sessions with a shared web frontend.
-Enables ambient presence between developers and bidirectional interactions while enforcing strict privacy (no code/messages/context leakage).
+Enables ambient presence between developers and bidirectional interactions while enforcing strict privacy (no
+code/messages/context leakage).
 
 ## Project Structure
 
@@ -51,6 +52,7 @@ plugin (emit.sh) → proxy (local, started by init.sh) → API server (remote)
 - Config lives at `~/.config/agentsmith/config` (shell KEY=VALUE format)
 
 Key config variables:
+
 - `AGENTSMITH_SERVER_URL` — remote API server URL (required)
 - `AGENTSMITH_CLIENT_URL` — local proxy URL (written by proxy on startup)
 - `AGENTSMITH_KEY` — auth token
@@ -61,34 +63,57 @@ Key config variables:
 
 ## Event Envelope
 
-Events use a nested envelope format. The **proxy owns the envelope** (stamps `room_id`, `type`, `format`, `sender`), the **server owns identity + timing** (`id`, `created_at`, `ttl_seconds`, `expires_at`). Raw payloads are stored as-is; consumers request a desired format via `?format=` and the server transforms on read.
+Events use a nested envelope format. The **proxy owns the envelope** (stamps `room_id`, `type`, `format`, `sender`), the
+**server owns identity + timing** (`id`, `created_at`, `ttl_seconds`, `expires_at`). Raw payloads are stored as-is;
+consumers request a desired format via `?format=` and the server transforms on read.
 
 ```typescript
 // Inbound (POST body from proxy or frontend)
 {
-  room_id: "room-1",
-  type: "hook.UserPromptSubmit",       // CC hook name or "interaction"
-  format: "claude_code_v27",           // source format identifier
-  sender: { user_id: "alice@co", session_id?: "sess-xxx" },
-  target?: { user_id: "bob@co", session_id?: "sess-yyy" },
-  payload: { /* opaque, raw */ }
+    room_id: "room-1",
+        type
+:
+    "hook.UserPromptSubmit",       // CC hook name or "interaction"
+        format
+:
+    "claude_code_v27",           // source format identifier
+        sender
+:
+    {
+        user_id: "alice@co", session_id ? : "sess-xxx"
+    }
+,
+    target ? : {user_id: "bob@co", session_id? : "sess-yyy"},
+        payload
+:
+    { /* opaque, raw */
+    }
 }
 
 // Stored & served (server adds these)
 {
-  id: "01ARZ...",           // ULID
-  created_at: 1709...,     // Unix ms
-  ttl_seconds: 300,
-  expires_at: 1709...,
-  // + all inbound fields (sender/target nested in response)
+    id: "01ARZ...",           // ULID
+        created_at
+:
+    1709...,     // Unix ms
+        ttl_seconds
+:
+    300,
+        expires_at
+:
+    1709...,
+    // + all inbound fields (sender/target nested in response)
 }
 ```
 
 Key design decisions:
+
 - `sender.user_id` is trusted from the request body (no auth-derived identity yet)
 - TTL is looked up by `type` (see `backend/packages/shared/src/ttl.ts`)
-- Transform-on-read: `backend/packages/api/src/lib/transform.ts` holds a registry of `from:to` format transformers (passthrough when no transformer registered)
-- DB stores flat columns (`sender_user_id`, `sender_session_id`, etc.) but `rowToEvent()` in `backend/packages/api/src/db/events.ts` marshals to the nested `Event` shape
+- Transform-on-read: `backend/packages/api/src/lib/transform.ts` holds a registry of `from:to` format transformers (
+  passthrough when no transformer registered)
+- DB stores flat columns (`sender_user_id`, `sender_session_id`, etc.) but `rowToEvent()` in
+  `backend/packages/api/src/db/events.ts` marshals to the nested `Event` shape
 
 ## Tech Stack
 
@@ -129,19 +154,24 @@ bun run typecheck             # TypeScript check (all packages)
 - **Biome** for formatting (2-space indent, 100-char lines) and linting — run `bun run format` before committing
 - **Error handling** — use `AppError` subclasses from `backend/packages/api/src/lib/errors.ts`
 - **Privacy first** — never transmit code, messages, or context through the event fabric
-- **Zero broken windows** — if you encounter pre-existing errors (typecheck, lint, test failures), fix them; never leave them for later
+- **Zero broken windows** — if you encounter pre-existing errors (typecheck, lint, test failures), fix them; never leave
+  them for later
 
 ## Plugin Development
 
-The plugin lives in `plugin/` (top-level) and follows the Claude Code plugin specification. Hooks are shell scripts; the local proxy (`proxy.ts`) is a Bun server started in the background by `init.sh`.
+The plugin lives in `plugin/` (top-level) and follows the Claude Code plugin specification. Hooks are shell scripts; the
+local proxy (`proxy.ts`) is a Bun server started in the background by `init.sh`.
 
 **Before working on the plugin, read:** `docs/specs/plugin-specs.md`
 
 Key concepts:
+
 - The plugin manifest is at `plugin/.claude-plugin/plugin.json`
 - Hooks are defined in `plugin/hooks/hooks.json`
-- `SessionStart` runs `init.sh` which starts `proxy.ts` in the background (if not running), loads `~/.config/agentsmith/config` into `$CLAUDE_ENV_FILE`, and calls `GET /health` on the proxy to display session info
-- All other hooks run `emit.sh` which constructs the event envelope (`room_id`, `type`, `format`, `sender`, `payload`) and POSTs it to the local proxy via `curl`
+- `SessionStart` runs `init.sh` which starts `proxy.ts` in the background (if not running), loads
+  `~/.config/agentsmith/config` into `$CLAUDE_ENV_FILE`, and calls `GET /health` on the proxy to display session info
+- All other hooks run `emit.sh` which constructs the event envelope (`room_id`, `type`, `format`, `sender`, `payload`)
+  and POSTs it to the local proxy via `curl`
 - Hooks use `"async": true` so they never block Claude Code
 - Test locally by running Claude with the plugin loaded:
 
@@ -149,10 +179,9 @@ Key concepts:
 claude --plugin-dir ./plugin
 ```
 
+## Deploy
 
-## Deploy 
-
-To deploy the backend : 
+To deploy the backend :
 
 ```bash
 siteio apps deploy agentsmith-api
@@ -165,3 +194,9 @@ cd frontend
 siteio sites deploy
 ```
 
+To deploy the plugin :
+
+When the user asks for a version bump of the plugin to to deplo, you can increment the version 
+in `plugin/.claude-plugin/plugin.json`
+
+Ask the user if he want to bump patch, minor or major if he did not specify it. Then commit & push 
