@@ -1,7 +1,7 @@
 {
   "name": "agentsmith",
   "description": "AgentSmith - collaborative awareness for Claude Code sessions",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "author": {
     "name": "Agent Smith"
   }
