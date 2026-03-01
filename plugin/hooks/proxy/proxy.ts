@@ -20,18 +20,19 @@ export function readConfig(configPath = DEFAULT_CONFIG_PATH): Record<string, str
   return entries;
 }
 
+const CONFIG_DEFAULTS: Record<string, string> = {
+  AGENTSMITH_ROOM: "lobby",
+};
+
 export function resolveConfig(
   configPath = DEFAULT_CONFIG_PATH,
   localConfigPath?: string,
 ): Record<string, string> {
-  const config = readConfig(configPath);
+  const config = { ...CONFIG_DEFAULTS, ...readConfig(configPath) };
   // Overlay per-project config (same logic as env.sh)
   const localPath = localConfigPath ?? process.env.AGENTSMITH_LOCAL_CONFIG;
   if (localPath) {
-    const local = readConfig(localPath);
-    for (const [k, v] of Object.entries(local)) {
-      config[k] = v;
-    }
+    Object.assign(config, readConfig(localPath));
   }
   return config;
 }
@@ -191,7 +192,7 @@ export function buildEnvelope(
   const hookEventName = (raw?.hook_event_name as string) ?? "unknown";
   const sessionId = (raw?.session_id as string) ?? "";
   return {
-    room_id: config.AGENTSMITH_ROOM ?? "",
+    room_id: config.AGENTSMITH_ROOM,
     type: `hook.${hookEventName}`,
     format: "claude_code_v27",
     sender: {
@@ -220,7 +221,7 @@ export function startProxy(
 
       if (url.pathname === "/health") {
         const config = resolveConfig(configPath);
-        const room = config.AGENTSMITH_ROOM ?? "";
+        const room = config.AGENTSMITH_ROOM;
         const clientUrl = config.AGENTSMITH_CLIENT_URL ?? "";
         const remoteUrl = config.AGENTSMITH_SERVER_URL ?? "";
         const currentMode = config.AGENTSMITH_SERVER_MODE ?? "remote";
@@ -262,7 +263,7 @@ export function startProxy(
       }
 
       const config = resolveConfig(configPath);
-      const room = config.AGENTSMITH_ROOM ?? "";
+      const room = config.AGENTSMITH_ROOM;
       const envelope = buildEnvelope(body, config);
       const apiPath = `/api/v1/rooms/${room}/events`;
       const eventType = (envelope.type as string) ?? "unknown";

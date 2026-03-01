@@ -2,7 +2,7 @@
 // Config
 // ---------------------------------------------------------------------------
 const IS_LOCAL = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
-const API_ORIGIN = IS_LOCAL ? `http://${location.hostname}:6001` : 'https://agentsmith-api.axel.siteio.me';
+const API_ORIGIN = IS_LOCAL ? `http://${location.hostname}:6001` : 'https://api.agentsmith.me';
 const API_BASE = `${API_ORIGIN}/api/v1`;
 const AUTH_BASE = API_ORIGIN;
 const GOOGLE_CLIENT_ID = '981559040299-kvtuldub9dklomij0se0fgr5ba6f8cpg.apps.googleusercontent.com';
