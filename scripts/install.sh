@@ -48,7 +48,9 @@ fi
 info "Adding AgentSmith marketplace..."
 mp_out=$(claude plugin marketplace add "$REPO" 2>&1) || true
 if printf '%s' "$mp_out" | grep -qi "already installed"; then
-  ok "Marketplace already added"
+  ok "Marketplace already added — updating..."
+  claude plugin marketplace update "$MARKETPLACE" 2>&1 || true
+  ok "Marketplace updated"
 else
   ok "Marketplace added"
 fi
@@ -109,6 +111,17 @@ else
   read -r token < /dev/tty
 
   sh "$LINK_SCRIPT" "$token"
+fi
+
+# ── Step 5: Restart proxy if running ──────────────────────────────────
+
+PIDFILE="$HOME/.config/agentsmith/proxy.pid"
+if [ -f "$PIDFILE" ] && kill -0 "$(cat "$PIDFILE")" 2>/dev/null; then
+  info "Restarting proxy..."
+  kill "$(cat "$PIDFILE")" 2>/dev/null
+  rm -f "$PIDFILE"
+  sleep 0.3
+  ok "Proxy stopped (will restart on next Claude Code session)"
 fi
 
 # ── Done ─────────────────────────────────────────────────────────────

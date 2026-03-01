@@ -51,7 +51,9 @@ if ($bunPath) {
 Info "Adding AgentSmith marketplace..."
 $mpOut = & claude plugin marketplace add $Repo 2>&1 | Out-String
 if ($mpOut -match "already installed") {
-    Ok "Marketplace already added"
+    Ok "Marketplace already added - updating..."
+    & claude plugin marketplace update $Marketplace 2>&1 | Out-Null
+    Ok "Marketplace updated"
 } else {
     Ok "Marketplace added"
 }
@@ -114,6 +116,20 @@ if ($existingKey) {
 
     & bash $linkScript $token
     if ($LASTEXITCODE -ne 0) { exit 1 }
+}
+
+# ── Step 5: Restart proxy if running ──────────────────────────────────
+
+$pidFile = Join-Path $env:USERPROFILE ".config\agentsmith\proxy.pid"
+if (Test-Path $pidFile) {
+    $pid = Get-Content $pidFile -ErrorAction SilentlyContinue
+    $proc = Get-Process -Id $pid -ErrorAction SilentlyContinue
+    if ($proc) {
+        Info "Restarting proxy..."
+        Stop-Process -Id $pid -Force -ErrorAction SilentlyContinue
+        Remove-Item $pidFile -Force -ErrorAction SilentlyContinue
+        Ok "Proxy stopped (will restart on next Claude Code session)"
+    }
 }
 
 # ── Done ─────────────────────────────────────────────────────────────
