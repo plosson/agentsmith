@@ -10,7 +10,7 @@
   "plugins": [
     {
       "name": "agentsmith",
-      "source": ".",
+      "source": "./",
       "description": "Collaborative awareness for Claude Code sessions — ambient presence, room-scoped events, and bidirectional interactions"
     }
   ]
