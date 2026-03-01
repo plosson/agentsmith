@@ -11,7 +11,7 @@
     {
       "name": "agentsmith",
       "source": ".",
-      "description": "Collaborative awareness for Claude Code sessions — ambient presence, room-scoped events, and bidirectional interactions",
+      "description": "Collaborative awareness for Claude Code sessions — ambient presence, room-scoped events, and bidirectional interactions"
     }
   ]
 }
