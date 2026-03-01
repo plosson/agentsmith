@@ -67,7 +67,7 @@ fi
 
 if json_has_key "$INSTALLED" "$PLUGIN_KEY"; then
   info "Plugin already installed — updating..."
-  claude plugin update "$PLUGIN" 2>&1 || true
+  claude plugin update "$PLUGIN_KEY" 2>&1 || true
   ok "Plugin updated"
 else
   printf '\n'
