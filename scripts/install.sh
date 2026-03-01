@@ -8,12 +8,20 @@ set -e
 REPO="plosson/agentsmith"
 MARKETPLACE="agentsmith-marketplace"
 PLUGIN="agentsmith"
+PLUGIN_KEY="${PLUGIN}@${MARKETPLACE}"
+
+PLUGINS_DIR="$HOME/.claude/plugins"
+KNOWN_MP="$PLUGINS_DIR/known_marketplaces.json"
+INSTALLED="$PLUGINS_DIR/installed_plugins.json"
 
 # ── Helpers ──────────────────────────────────────────────────────────
 
 info()  { printf '\033[1;34m==>\033[0m %s\n' "$*"; }
 ok()    { printf '\033[1;32m ✓\033[0m  %s\n' "$*"; }
 err()   { printf '\033[1;31m ✗\033[0m  %s\n' "$*" >&2; }
+
+# Check if a key exists in a JSON file (simple string match)
+json_has_key() { [ -f "$1" ] && grep -q "\"$2\"" "$1"; }
 
 # ── Banner ───────────────────────────────────────────────────────────
 
@@ -43,44 +51,44 @@ else
   exit 1
 fi
 
-# ── Step 2: Add marketplace ──────────────────────────────────────────
+# ── Step 2: Add or update marketplace ─────────────────────────────────
 
-info "Adding AgentSmith marketplace..."
-mp_out=$(claude plugin marketplace add "$REPO" 2>&1) || true
-if printf '%s' "$mp_out" | grep -qi "already installed"; then
-  ok "Marketplace already added — updating..."
+if json_has_key "$KNOWN_MP" "$MARKETPLACE"; then
+  info "Marketplace already registered — updating..."
   claude plugin marketplace update "$MARKETPLACE" 2>&1 || true
   ok "Marketplace updated"
 else
+  info "Adding AgentSmith marketplace..."
+  claude plugin marketplace add "$REPO" 2>&1 || true
   ok "Marketplace added"
 fi
 
 # ── Step 3: Install or update plugin ─────────────────────────────────
 
-printf '\n'
-info "Where should AgentSmith be installed?"
-printf '\n'
-printf '    [1] All projects          — available everywhere (recommended)\n'
-printf '    [2] This project (team)   — shared with your team via .claude/\n'
-printf '    [3] This project (just me) — local to you, not committed\n'
-printf '\n'
-printf '  Choose [1/2/3] (default: 1): '
-read -r scope_choice < /dev/tty
-
-case "$scope_choice" in
-  2) scope_flag="-s project" ; scope_label="project (team)" ;;
-  3) scope_flag="-s local"   ; scope_label="project (just me)" ;;
-  *)  scope_flag=""           ; scope_label="all projects" ;;
-esac
-
-info "Installing for ${scope_label}..."
-# shellcheck disable=SC2086
-inst_out=$(claude plugin install "agentsmith@${MARKETPLACE}" $scope_flag 2>&1) || true
-if printf '%s' "$inst_out" | grep -qi "already installed"; then
-  ok "Plugin already installed — updating..."
-  upd_out=$(claude plugin update "$PLUGIN" 2>&1) || true
+if json_has_key "$INSTALLED" "$PLUGIN_KEY"; then
+  info "Plugin already installed — updating..."
+  claude plugin update "$PLUGIN" 2>&1 || true
   ok "Plugin updated"
 else
+  printf '\n'
+  info "Where should AgentSmith be installed?"
+  printf '\n'
+  printf '    [1] All projects          — available everywhere (recommended)\n'
+  printf '    [2] This project (team)   — shared with your team via .claude/\n'
+  printf '    [3] This project (just me) — local to you, not committed\n'
+  printf '\n'
+  printf '  Choose [1/2/3] (default: 1): '
+  read -r scope_choice < /dev/tty
+
+  case "$scope_choice" in
+    2) scope_flag="-s project" ; scope_label="project (team)" ;;
+    3) scope_flag="-s local"   ; scope_label="project (just me)" ;;
+    *)  scope_flag=""           ; scope_label="all projects" ;;
+  esac
+
+  info "Installing for ${scope_label}..."
+  # shellcheck disable=SC2086
+  claude plugin install "${PLUGIN_KEY}" $scope_flag 2>&1 || true
   ok "Plugin installed"
 fi
 

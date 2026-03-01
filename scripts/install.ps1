@@ -7,12 +7,22 @@ $ErrorActionPreference = "Stop"
 $Repo = "plosson/agentsmith"
 $Marketplace = "agentsmith-marketplace"
 $Plugin = "agentsmith"
+$PluginKey = "${Plugin}@${Marketplace}"
+
+$PluginsDir = Join-Path $env:USERPROFILE ".claude\plugins"
+$KnownMp = Join-Path $PluginsDir "known_marketplaces.json"
+$Installed = Join-Path $PluginsDir "installed_plugins.json"
 
 # ── Helpers ──────────────────────────────────────────────────────────
 
 function Info($msg)  { Write-Host "==> $msg" -ForegroundColor Blue }
 function Ok($msg)    { Write-Host " ✓  $msg" -ForegroundColor Green }
 function Err($msg)   { Write-Host " ✗  $msg" -ForegroundColor Red }
+
+function JsonHasKey($file, $key) {
+    if (-not (Test-Path $file)) { return $false }
+    return (Get-Content $file -Raw) -match [regex]::Escape("`"$key`"")
+}
 
 # ── Banner ───────────────────────────────────────────────────────────
 
@@ -46,42 +56,42 @@ if ($bunPath) {
     exit 1
 }
 
-# ── Step 2: Add marketplace ──────────────────────────────────────────
+# ── Step 2: Add or update marketplace ─────────────────────────────────
 
-Info "Adding AgentSmith marketplace..."
-$mpOut = & claude plugin marketplace add $Repo 2>&1 | Out-String
-if ($mpOut -match "already installed") {
-    Ok "Marketplace already added - updating..."
+if (JsonHasKey $KnownMp $Marketplace) {
+    Info "Marketplace already registered - updating..."
     & claude plugin marketplace update $Marketplace 2>&1 | Out-Null
     Ok "Marketplace updated"
 } else {
+    Info "Adding AgentSmith marketplace..."
+    & claude plugin marketplace add $Repo 2>&1 | Out-Null
     Ok "Marketplace added"
 }
 
 # ── Step 3: Install or update plugin ─────────────────────────────────
 
-Write-Host ""
-Info "Where should AgentSmith be installed?"
-Write-Host ""
-Write-Host "    [1] All projects          - available everywhere (recommended)"
-Write-Host "    [2] This project (team)   - shared with your team via .claude/"
-Write-Host "    [3] This project (just me) - local to you, not committed"
-Write-Host ""
-$scopeChoice = Read-Host "  Choose [1/2/3] (default: 1)"
-
-switch ($scopeChoice) {
-    "2" { $scopeArgs = @("-s", "project"); $scopeLabel = "project (team)" }
-    "3" { $scopeArgs = @("-s", "local");   $scopeLabel = "project (just me)" }
-    default { $scopeArgs = @();            $scopeLabel = "all projects" }
-}
-
-Info "Installing for ${scopeLabel}..."
-$instOut = & claude plugin install "agentsmith@$Marketplace" @scopeArgs 2>&1 | Out-String
-if ($instOut -match "already installed") {
-    Ok "Plugin already installed - updating..."
+if (JsonHasKey $Installed $PluginKey) {
+    Info "Plugin already installed - updating..."
     & claude plugin update $Plugin 2>&1 | Out-Null
     Ok "Plugin updated"
 } else {
+    Write-Host ""
+    Info "Where should AgentSmith be installed?"
+    Write-Host ""
+    Write-Host "    [1] All projects          - available everywhere (recommended)"
+    Write-Host "    [2] This project (team)   - shared with your team via .claude/"
+    Write-Host "    [3] This project (just me) - local to you, not committed"
+    Write-Host ""
+    $scopeChoice = Read-Host "  Choose [1/2/3] (default: 1)"
+
+    switch ($scopeChoice) {
+        "2" { $scopeArgs = @("-s", "project"); $scopeLabel = "project (team)" }
+        "3" { $scopeArgs = @("-s", "local");   $scopeLabel = "project (just me)" }
+        default { $scopeArgs = @();            $scopeLabel = "all projects" }
+    }
+
+    Info "Installing for ${scopeLabel}..."
+    & claude plugin install $PluginKey @scopeArgs 2>&1 | Out-Null
     Ok "Plugin installed"
 }
 
