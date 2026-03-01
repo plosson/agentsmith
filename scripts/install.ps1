@@ -85,24 +85,36 @@ if ($instOut -match "already installed") {
 
 # ── Step 4: Link token ───────────────────────────────────────────────
 
-# Find link.sh from the installed plugin (take latest version)
-$pluginDir = Join-Path $env:USERPROFILE ".claude\plugins\cache\$Marketplace\$Plugin"
-$linkScript = Get-ChildItem -Path "$pluginDir\*\hooks\scripts\link.sh" -ErrorAction SilentlyContinue |
-    Sort-Object { $_.Directory.Parent.Parent.Parent.Name } |
-    Select-Object -Last 1
-if (-not $linkScript) {
-    Err "Could not find link.sh - plugin installation may have failed."
-    exit 1
+$configFile = Join-Path $env:USERPROFILE ".config\agentsmith\config"
+$existingKey = ""
+if (Test-Path $configFile) {
+    $existingKey = (Select-String -Path $configFile -Pattern "^AGENTSMITH_KEY=" -ErrorAction SilentlyContinue |
+        ForEach-Object { $_.Line -replace "^AGENTSMITH_KEY=","" })
 }
-$linkScript = $linkScript.FullName
 
-Write-Host ""
-Info "Visit https://agentsmith.me/#/link to get your setup token"
-Write-Host ""
-$token = (Read-Host "  Paste token").Trim()
+if ($existingKey) {
+    $masked = $existingKey.Substring(0, [Math]::Min(8, $existingKey.Length))
+    Ok "Already linked (key: ${masked}...)"
+} else {
+    # Find link.sh from the installed plugin (take latest version)
+    $pluginDir = Join-Path $env:USERPROFILE ".claude\plugins\cache\$Marketplace\$Plugin"
+    $linkScript = Get-ChildItem -Path "$pluginDir\*\hooks\scripts\link.sh" -ErrorAction SilentlyContinue |
+        Sort-Object { $_.Directory.Parent.Parent.Parent.Name } |
+        Select-Object -Last 1
+    if (-not $linkScript) {
+        Err "Could not find link.sh - plugin installation may have failed."
+        exit 1
+    }
+    $linkScript = $linkScript.FullName
 
-& bash $linkScript $token
-if ($LASTEXITCODE -ne 0) { exit 1 }
+    Write-Host ""
+    Info "Visit https://agentsmith.me/#/link to get your setup token"
+    Write-Host ""
+    $token = (Read-Host "  Paste token").Trim()
+
+    & bash $linkScript $token
+    if ($LASTEXITCODE -ne 0) { exit 1 }
+}
 
 # ── Done ─────────────────────────────────────────────────────────────
 
