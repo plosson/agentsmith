@@ -89,31 +89,22 @@ fi
 # ── Step 4: Link token ───────────────────────────────────────────────
 
 CONFIG_FILE="$HOME/.config/agentsmith/config"
-EXISTING_KEY=""
-if [ -f "$CONFIG_FILE" ]; then
-  EXISTING_KEY=$(grep '^AGENTSMITH_KEY=' "$CONFIG_FILE" 2>/dev/null | cut -d= -f2)
+
+# Find link.sh from the installed plugin (take latest version)
+LINK_SCRIPT=$(ls -d "$HOME/.claude/plugins/cache/${MARKETPLACE}/${PLUGIN}"/*/hooks/scripts/link.sh \
+              2>/dev/null | sort -V | tail -1)
+if [ -z "$LINK_SCRIPT" ]; then
+  err "Could not find link.sh — plugin installation may have failed."
+  exit 1
 fi
 
-if [ -n "$EXISTING_KEY" ]; then
-  masked=$(printf '%s' "$EXISTING_KEY" | cut -c1-8)
-  ok "Already linked (key: ${masked}...)"
-else
-  # Find link.sh from the installed plugin (take latest version)
-  LINK_SCRIPT=$(ls -d "$HOME/.claude/plugins/cache/${MARKETPLACE}/${PLUGIN}"/*/hooks/scripts/link.sh \
-                2>/dev/null | sort -V | tail -1)
-  if [ -z "$LINK_SCRIPT" ]; then
-    err "Could not find link.sh — plugin installation may have failed."
-    exit 1
-  fi
+printf '\n'
+info "Visit https://agentsmith.me/#/link to get your setup token"
+printf '\n'
+printf '  Paste token: '
+read -r token < /dev/tty
 
-  printf '\n'
-  info "Visit https://agentsmith.me/#/link to get your setup token"
-  printf '\n'
-  printf '  Paste token: '
-  read -r token < /dev/tty
-
-  sh "$LINK_SCRIPT" "$token"
-fi
+sh "$LINK_SCRIPT" "$token"
 
 # ── Step 5: Preferences ──────────────────────────────────────────────
 
