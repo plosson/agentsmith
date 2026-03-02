@@ -123,6 +123,12 @@ if [ -z "$AGENTSMITH_SERVER_URL" ]; then
   exit 0
 fi
 
+# Not enabled in this project — show disabled banner + exit
+if [ "$AGENTSMITH_ENABLED" != "true" ]; then
+  printf '{"systemMessage":"AgentSmith installed but not enabled in this project. Run /smith enable to activate."}\n'
+  exit 0
+fi
+
 start_proxy
 
 # Wait for proxy to write AGENTSMITH_CLIENT_URL to config (up to 2s)

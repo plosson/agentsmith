@@ -2,7 +2,7 @@
 name: smith
 description: "Manage Agent Smith"
 disable-model-invocation: true
-argument-hint: "[status|restart|setup]"
+argument-hint: "[status|restart|setup|enable|disable]"
 ---
 
 The user ran `/smith $ARGUMENTS`.
@@ -120,4 +120,62 @@ Tell the user the config was saved and the proxy restarted. Suggest running `/sm
 
 ---
 
-If `$ARGUMENTS` is anything else, tell the user the available subcommands: `status`, `restart`, `setup`.
+If `$ARGUMENTS` starts with **"enable"**, enable AgentSmith for the current project.
+
+Parse the optional room argument: `/smith enable [room-name]`.
+
+Write the config to `.claude/agentsmith/config`:
+
+```bash
+CONFIG_FILE=".claude/agentsmith/config"
+mkdir -p "$(dirname "$CONFIG_FILE")"
+
+upsert() {
+  local KEY="$1" VALUE="$2"
+  touch "$CONFIG_FILE"
+  if grep -q "^${KEY}=" "$CONFIG_FILE"; then
+    sed -i '' "s|^${KEY}=.*|${KEY}=${VALUE}|" "$CONFIG_FILE"
+  else
+    echo "${KEY}=${VALUE}" >> "$CONFIG_FILE"
+  fi
+}
+
+upsert AGENTSMITH_ENABLED true
+```
+
+If a room name was provided (e.g., `/smith enable myroom`), also write:
+
+```bash
+upsert AGENTSMITH_ROOM "<room-name>"
+```
+
+Then tell the user AgentSmith is now enabled for this project. If a room was set, mention it. Remind them to restart the Claude Code session (or run `/smith restart`) for the change to take effect.
+
+---
+
+If `$ARGUMENTS` is **"disable"**, disable AgentSmith for the current project.
+
+Write `AGENTSMITH_ENABLED=false` to `.claude/agentsmith/config`:
+
+```bash
+CONFIG_FILE=".claude/agentsmith/config"
+mkdir -p "$(dirname "$CONFIG_FILE")"
+
+upsert() {
+  local KEY="$1" VALUE="$2"
+  touch "$CONFIG_FILE"
+  if grep -q "^${KEY}=" "$CONFIG_FILE"; then
+    sed -i '' "s|^${KEY}=.*|${KEY}=${VALUE}|" "$CONFIG_FILE"
+  else
+    echo "${KEY}=${VALUE}" >> "$CONFIG_FILE"
+  fi
+}
+
+upsert AGENTSMITH_ENABLED false
+```
+
+Tell the user AgentSmith is now disabled for this project. Remind them to restart the Claude Code session for the change to take effect.
+
+---
+
+If `$ARGUMENTS` is anything else, tell the user the available subcommands: `status`, `restart`, `setup`, `enable [room]`, `disable`.

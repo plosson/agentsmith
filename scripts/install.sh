@@ -23,20 +23,6 @@ err()   { printf '\033[1;31m ✗\033[0m  %s\n' "$*" >&2; }
 # Check if a key exists in a JSON file (simple string match)
 json_has_key() { [ -f "$1" ] && grep -q "\"$2\"" "$1"; }
 
-# Extract the installed scope ("user", "project", "local") for a plugin key
-installed_scope() {
-  [ -f "$INSTALLED" ] || return 1
-  awk -v key="\"$1\"" '
-    $0 ~ key { found=1 }
-    found && /"scope"/ {
-      gsub(/.*"scope" *: *"/, "")
-      gsub(/".*/, "")
-      print
-      exit
-    }
-  ' "$INSTALLED"
-}
-
 # ── Banner ───────────────────────────────────────────────────────────
 
 printf '\n'
@@ -80,39 +66,15 @@ fi
 # ── Step 3: Install or update plugin ─────────────────────────────────
 
 install_fresh() {
-  printf '\n'
-  info "Where should AgentSmith be installed?"
-  printf '\n'
-  printf '    [1] All projects          — available everywhere (recommended)\n'
-  printf '    [2] This project (team)   — shared with your team via .claude/\n'
-  printf '    [3] This project (just me) — local to you, not committed\n'
-  printf '\n'
-  printf '  Choose [1/2/3] (default: 1): '
-  read -r scope_choice < /dev/tty
-
-  case "$scope_choice" in
-    2) scope_flag="-s project" ; scope_label="project (team)" ;;
-    3) scope_flag="-s local"   ; scope_label="project (just me)" ;;
-    *)  scope_flag=""           ; scope_label="all projects" ;;
-  esac
-
-  info "Installing for ${scope_label}..."
-  # shellcheck disable=SC2086
-  claude plugin install "${PLUGIN_KEY}" $scope_flag 2>&1 || true
+  info "Installing plugin (user-level)..."
+  claude plugin install "${PLUGIN_KEY}" 2>&1 || true
   ok "Plugin installed"
 }
 
 if json_has_key "$INSTALLED" "$PLUGIN_KEY"; then
   info "Plugin already installed — updating..."
-  scope=$(installed_scope "$PLUGIN_KEY")
-  case "$scope" in
-    project) update_flag="-s project" ;;
-    local)   update_flag="-s local" ;;
-    *)       update_flag="" ;;
-  esac
   # Capture output — CLI may return exit 0 even on failure
-  # shellcheck disable=SC2086
-  update_output=$(claude plugin update "$PLUGIN_KEY" $update_flag 2>&1) || true
+  update_output=$(claude plugin update "$PLUGIN_KEY" 2>&1) || true
   printf '%s\n' "$update_output"
   if printf '%s' "$update_output" | grep -qi "failed\|error\|not installed"; then
     info "Update failed — reinstalling..."
@@ -170,5 +132,5 @@ printf '\n'
 printf '\033[1;32m  AgentSmith installed successfully!\033[0m\n'
 printf '\n'
 printf '  Config: %s\n' "$HOME/.config/agentsmith/config"
-printf '  Restart Claude Code to activate the plugin.\n'
+printf '  Run /smith enable in any project to activate AgentSmith there.\n'
 printf '\n'

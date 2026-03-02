@@ -1,6 +1,7 @@
 #!/bin/bash
 SCRIPTS_DIR="$(cd "$(dirname "$0")" && pwd)"
 . "$SCRIPTS_DIR/env.sh"
+[ "$AGENTSMITH_ENABLED" != "true" ] && exit 0
 [ -z "$AGENTSMITH_CLIENT_URL" ] && exit 0
 # Send raw hook payload to proxy — proxy owns envelope construction
 cat | curl -s --max-time 2 -X POST \
