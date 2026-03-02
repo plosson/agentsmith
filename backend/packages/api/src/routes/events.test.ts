@@ -692,6 +692,110 @@ describe("Event routes", () => {
       const res = await ctx.app.request("/api/v1/rooms/test-room/events/stream?since=0");
       expect(res.status).toBe(401);
     });
+
+    it("streams projected events via ?format=avatar_actions", async () => {
+      ctx = createTestContext();
+      await createRoom("test-room", "plugin-1", "alice@test.com");
+      addMember("test-room", "web-1", "bob@test.com");
+
+      const res = await ctx.app.request(
+        "/api/v1/rooms/test-room/events/stream?since=0&format=avatar_actions",
+        { headers: await authHeader("web-1", "bob@test.com") },
+      );
+      expect(res.body).toBeDefined();
+      const reader = (res.body as ReadableStream<Uint8Array>).getReader();
+
+      // Publish a PreToolUse event
+      ctx.bus.publish({
+        id: "proj-test-1",
+        room_id: "test-room",
+        type: "hook.PreToolUse",
+        format: "claude_code_v27",
+        sender: { user_id: "alice@test.com", session_id: "sess-1" },
+        target: null,
+        payload: { tool: "Read" },
+        ttl_seconds: 300,
+        created_at: Date.now(),
+        expires_at: Date.now() + 300_000,
+      });
+
+      const { value } = await reader.read();
+      reader.cancel();
+
+      const text = new TextDecoder().decode(value);
+      const messages = parseSSE(text);
+      const projMsgs = messages.filter((m) => m.event === "projection");
+      expect(projMsgs.length).toBeGreaterThanOrEqual(1);
+
+      const parsed = JSON.parse(projMsgs[0].data);
+      expect(parsed.format).toBe("avatar_actions");
+      expect(parsed.data.action).toBe("hands_wiggle");
+      expect(parsed.data.user_id).toBe("alice@test.com");
+    });
+
+    it("filters out events that don't match any mapper", async () => {
+      ctx = createTestContext();
+      await createRoom("test-room", "plugin-1", "alice@test.com");
+      addMember("test-room", "web-1", "bob@test.com");
+
+      // Insert a Notification event first (avatar_actions returns null for this)
+      await ctx.app.request("/api/v1/rooms/test-room/events", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(await authHeader("plugin-1", "alice@test.com")),
+        },
+        body: JSON.stringify(makeEvent("test-room", { type: "hook.Notification" })),
+      });
+
+      // Then insert a PreToolUse (avatar_actions maps this)
+      await ctx.app.request("/api/v1/rooms/test-room/events", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(await authHeader("plugin-1", "alice@test.com")),
+        },
+        body: JSON.stringify(makeEvent("test-room", { type: "hook.PreToolUse" })),
+      });
+
+      const res = await ctx.app.request(
+        "/api/v1/rooms/test-room/events/stream?since=0&format=avatar_actions",
+        { headers: await authHeader("web-1", "bob@test.com") },
+      );
+      expect(res.body).toBeDefined();
+      const reader = (res.body as ReadableStream<Uint8Array>).getReader();
+
+      const { value } = await reader.read();
+      reader.cancel();
+
+      const text = new TextDecoder().decode(value);
+      const messages = parseSSE(text);
+      // Only projection events, no raw "event" type messages
+      const projMsgs = messages.filter((m) => m.event === "projection");
+      const rawMsgs = messages.filter((m) => m.event === "event");
+      expect(projMsgs.length).toBeGreaterThanOrEqual(1);
+      expect(rawMsgs).toHaveLength(0);
+
+      // All projected messages should be avatar_actions
+      for (const msg of projMsgs) {
+        const parsed = JSON.parse(msg.data);
+        expect(parsed.format).toBe("avatar_actions");
+        expect(parsed.data.action).toBe("hands_wiggle");
+      }
+    });
+
+    it("returns 400 for reducer format on SSE stream", async () => {
+      ctx = createTestContext();
+      await createRoom("test-room", "plugin-1", "alice@test.com");
+      addMember("test-room", "web-1", "bob@test.com");
+
+      const res = await ctx.app.request(
+        "/api/v1/rooms/test-room/events/stream?since=0&format=leaderboard",
+        { headers: await authHeader("web-1", "bob@test.com") },
+      );
+      // Should reject because leaderboard is a reducer, not a mapper
+      expect(res.status).toBe(400);
+    });
   });
 
   // --- Private room enforcement ---
