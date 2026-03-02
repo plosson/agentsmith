@@ -23,7 +23,15 @@ export function createApp(db: Database, bus?: EventBus): Hono<AppEnv> {
   const app = new Hono<AppEnv>();
 
   app.use("*", requestLogger);
-  app.use("*", cors());
+  app.use(
+    "*",
+    cors({
+      origin: "*",
+      allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+      allowHeaders: ["Content-Type", "Authorization"],
+      maxAge: 86400,
+    }),
+  );
   app.onError(errorHandler);
 
   app.get("/health", (c) => {
