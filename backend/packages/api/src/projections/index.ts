@@ -1,4 +1,5 @@
 import type { MapperProjection, Projection, ReducerProjection } from "./types";
+import { avatarActions } from "./avatar-actions";
 
 export type { MapperProjection, Projection, ReducerProjection } from "./types";
 
@@ -30,4 +31,4 @@ export function listProjections(): Projection[] {
 }
 
 // --- Register all projections here ---
-// (imports added as projections are created in subsequent tasks)
+register(avatarActions);
