@@ -13,6 +13,7 @@ import {
   updateRoom,
 } from "../db/rooms";
 import { getOrCreatePendingUser, getUserByEmail } from "../db/users";
+import { config } from "../lib/config";
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from "../lib/errors";
 import { requireAdmin } from "../middleware/admin";
 
@@ -21,7 +22,9 @@ export function roomRoutes(db: Database): Hono<AppEnv> {
 
   router.get("/rooms", (c) => {
     const userId = c.get("userId");
-    const rooms = listRooms(db, userId);
+    const email = c.get("userEmail");
+    const isAdmin = config.adminUsers.includes(email);
+    const rooms = listRooms(db, isAdmin ? undefined : userId);
     return c.json({ rooms });
   });
 
@@ -53,7 +56,9 @@ export function roomRoutes(db: Database): Hono<AppEnv> {
       throw new NotFoundError("Room");
     }
     const userId = c.get("userId");
-    if (!isMember(db, roomId, userId)) {
+    const email = c.get("userEmail");
+    const isAdmin = config.adminUsers.includes(email);
+    if (!isAdmin && !isMember(db, roomId, userId)) {
       throw new ForbiddenError("Not a member of this room");
     }
     return c.json(room);

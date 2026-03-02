@@ -104,7 +104,9 @@ export function eventRoutes(db: Database, bus: EventBus): Hono<AppEnv> {
   router.get("/rooms/:roomId/events/stream", (c) => {
     const roomId = c.req.param("roomId");
     const userId = c.get("userId");
-    if (!isMember(db, roomId, userId)) {
+    const email = c.get("userEmail");
+    const isAdmin = config.adminUsers.includes(email);
+    if (!isAdmin && !isMember(db, roomId, userId)) {
       throw new ForbiddenError("Not a member of this room");
     }
     const since = Number(c.req.query("since") || "0");
@@ -203,7 +205,9 @@ export function eventRoutes(db: Database, bus: EventBus): Hono<AppEnv> {
   router.get("/rooms/:roomId/events", (c) => {
     const roomId = c.req.param("roomId");
     const userId = c.get("userId");
-    if (!isMember(db, roomId, userId)) {
+    const email = c.get("userEmail");
+    const isAdmin = config.adminUsers.includes(email);
+    if (!isAdmin && !isMember(db, roomId, userId)) {
       throw new ForbiddenError("Not a member of this room");
     }
     const query = {
