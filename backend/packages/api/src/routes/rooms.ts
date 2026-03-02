@@ -2,14 +2,15 @@ import type { Database } from "bun:sqlite";
 import { createRoomSchema } from "@agentsmith/shared";
 import { Hono } from "hono";
 import type { AppEnv } from "../app";
-import { createRoom, getRoomWithMembers, listRooms } from "../db/rooms";
-import { ConflictError, NotFoundError, ValidationError } from "../lib/errors";
+import { addMember, createRoom, getRoomWithMembers, isMember, listRooms } from "../db/rooms";
+import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from "../lib/errors";
 
 export function roomRoutes(db: Database): Hono<AppEnv> {
   const router = new Hono<AppEnv>();
 
   router.get("/rooms", (c) => {
-    const rooms = listRooms(db);
+    const userId = c.get("userId");
+    const rooms = listRooms(db, userId);
     return c.json({ rooms });
   });
 
@@ -24,6 +25,7 @@ export function roomRoutes(db: Database): Hono<AppEnv> {
 
     try {
       const room = createRoom(db, parsed.data.id, userId);
+      addMember(db, parsed.data.id, userId);
       return c.json(room, 201);
     } catch (err: unknown) {
       if (err instanceof Error && err.message?.includes("UNIQUE constraint")) {
@@ -38,6 +40,10 @@ export function roomRoutes(db: Database): Hono<AppEnv> {
     const room = getRoomWithMembers(db, roomId);
     if (!room) {
       throw new NotFoundError("Room");
+    }
+    const userId = c.get("userId");
+    if (!isMember(db, roomId, userId)) {
+      throw new ForbiddenError("Not a member of this room");
     }
     return c.json(room);
   });

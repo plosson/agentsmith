@@ -73,7 +73,7 @@ describe("Room routes", () => {
       expect(json).toEqual({ rooms: [] });
     });
 
-    it("returns rooms with member count", async () => {
+    it("returns rooms with member count (only rooms user belongs to)", async () => {
       ctx = createTestContext();
       const headers = {
         "Content-Type": "application/json",
@@ -84,19 +84,38 @@ describe("Room routes", () => {
         headers,
         body: JSON.stringify({ id: "my-project" }),
       });
+      // Creator is auto-added as member, so they can see their room
       const res = await ctx.app.request("/api/v1/rooms", {
-        headers: await authHeader("web-user-1", "bob@test.com"),
+        headers: await authHeader("plugin-user-1", "alice@test.com"),
       });
       expect(res.status).toBe(200);
       const json = await res.json();
       expect(json.rooms).toHaveLength(1);
       expect(json.rooms[0].id).toBe("my-project");
-      expect(json.rooms[0].member_count).toBe(0);
+      expect(json.rooms[0].member_count).toBe(1);
+    });
+
+    it("does not return rooms user is not a member of", async () => {
+      ctx = createTestContext();
+      await ctx.app.request("/api/v1/rooms", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(await authHeader("plugin-user-1", "alice@test.com")),
+        },
+        body: JSON.stringify({ id: "my-project" }),
+      });
+      const res = await ctx.app.request("/api/v1/rooms", {
+        headers: await authHeader("web-user-1", "bob@test.com"),
+      });
+      expect(res.status).toBe(200);
+      const json = await res.json();
+      expect(json.rooms).toHaveLength(0);
     });
   });
 
   describe("GET /api/v1/rooms/:roomId (web UI views room)", () => {
-    it("returns room with members", async () => {
+    it("returns room with members for a member", async () => {
       ctx = createTestContext();
       const createRes = await ctx.app.request("/api/v1/rooms", {
         method: "POST",
@@ -108,12 +127,28 @@ describe("Room routes", () => {
       });
       const room = await createRes.json();
       const res = await ctx.app.request(`/api/v1/rooms/${room.id}`, {
-        headers: await authHeader("web-user-1", "bob@test.com"),
+        headers: await authHeader("plugin-user-1", "alice@test.com"),
       });
       expect(res.status).toBe(200);
       const json = await res.json();
       expect(json.id).toBe("my-project");
       expect(json.members).toBeArray();
+    });
+
+    it("returns 403 for non-member", async () => {
+      ctx = createTestContext();
+      await ctx.app.request("/api/v1/rooms", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(await authHeader("plugin-user-1", "alice@test.com")),
+        },
+        body: JSON.stringify({ id: "my-project" }),
+      });
+      const res = await ctx.app.request("/api/v1/rooms/my-project", {
+        headers: await authHeader("web-user-1", "bob@test.com"),
+      });
+      expect(res.status).toBe(403);
     });
 
     it("returns 404 for non-existent room", async () => {

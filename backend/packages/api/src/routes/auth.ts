@@ -95,4 +95,3 @@ export function apiKeyRoutes(db: Database): Hono<AppEnv> {
 
   return router;
 }
-

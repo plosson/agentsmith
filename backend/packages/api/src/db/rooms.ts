@@ -11,7 +11,20 @@ export function createRoom(db: Database, id: string, createdBy: string): Room {
   return { id, created_by: createdBy, created_at: now };
 }
 
-export function listRooms(db: Database): RoomListItem[] {
+export function listRooms(db: Database, userId?: string): RoomListItem[] {
+  if (userId) {
+    return db
+      .query(
+        `SELECT r.id, r.created_by, r.created_at,
+                COUNT(rm2.user_id) AS member_count
+         FROM rooms r
+         INNER JOIN room_members rm ON rm.room_id = r.id AND rm.user_id = ?
+         LEFT JOIN room_members rm2 ON rm2.room_id = r.id
+         GROUP BY r.id
+         ORDER BY r.created_at DESC`,
+      )
+      .all(userId) as RoomListItem[];
+  }
   return db
     .query(
       `SELECT r.id, r.created_by, r.created_at,
@@ -39,6 +52,13 @@ export function getRoomWithMembers(db: Database, roomId: string): RoomWithMember
     .all(roomId) as RoomMember[];
 
   return { ...room, members };
+}
+
+export function isMember(db: Database, roomId: string, userId: string): boolean {
+  const row = db
+    .query("SELECT 1 FROM room_members WHERE room_id = ? AND user_id = ?")
+    .get(roomId, userId);
+  return row !== null;
 }
 
 export function addMember(db: Database, roomId: string, userId: string): void {

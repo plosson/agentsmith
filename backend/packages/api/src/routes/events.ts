@@ -9,9 +9,9 @@ import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import type { AppEnv } from "../app";
 import { consumeTargetedEvents, insertEvent, queryEvents } from "../db/events";
-import { addMember, createRoom } from "../db/rooms";
+import { addMember, createRoom, isMember } from "../db/rooms";
 import { config } from "../lib/config";
-import { PayloadTooLargeError, ValidationError } from "../lib/errors";
+import { ForbiddenError, PayloadTooLargeError, ValidationError } from "../lib/errors";
 import type { EventBus } from "../lib/event-bus";
 import { transformEvent } from "../lib/transform";
 
@@ -48,11 +48,13 @@ export function eventRoutes(db: Database, bus: EventBus): Hono<AppEnv> {
 
     addMember(db, roomId, userId);
 
+    const userEmail = c.get("userEmail");
+
     const event = insertEvent(db, {
       roomId,
       type: parsed.data.type,
       format: parsed.data.format,
-      senderUserId: parsed.data.sender.user_id,
+      senderUserId: userEmail,
       senderSessionId: parsed.data.sender.session_id,
       payload: parsed.data.payload,
       ttlSeconds,
@@ -64,12 +66,7 @@ export function eventRoutes(db: Database, bus: EventBus): Hono<AppEnv> {
       bus.publish(event);
     }
 
-    const targeted = consumeTargetedEvents(
-      db,
-      roomId,
-      parsed.data.sender.user_id,
-      parsed.data.sender.session_id,
-    );
+    const targeted = consumeTargetedEvents(db, roomId, userEmail, parsed.data.sender.session_id);
 
     const format = c.req.query("format");
     const messages = targeted.map((e) => transformEvent(e, format).payload);
@@ -88,6 +85,10 @@ export function eventRoutes(db: Database, bus: EventBus): Hono<AppEnv> {
 
   router.get("/rooms/:roomId/events/stream", (c) => {
     const roomId = c.req.param("roomId");
+    const userId = c.get("userId");
+    if (!isMember(db, roomId, userId)) {
+      throw new ForbiddenError("Not a member of this room");
+    }
     const since = Number(c.req.query("since") || "0");
     const format = c.req.query("format");
 
@@ -146,6 +147,10 @@ export function eventRoutes(db: Database, bus: EventBus): Hono<AppEnv> {
 
   router.get("/rooms/:roomId/events", (c) => {
     const roomId = c.req.param("roomId");
+    const userId = c.get("userId");
+    if (!isMember(db, roomId, userId)) {
+      throw new ForbiddenError("Not a member of this room");
+    }
     const query = {
       since: c.req.query("since"),
       limit: c.req.query("limit"),

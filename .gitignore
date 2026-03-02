@@ -6,3 +6,4 @@ bin/
 .DS_Store
 .idea/
 .claude/agentsmith
+.cct

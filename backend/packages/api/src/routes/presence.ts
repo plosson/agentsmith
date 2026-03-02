@@ -1,5 +1,8 @@
 import type { Database } from "bun:sqlite";
 import { Hono } from "hono";
+import type { AppEnv } from "../app";
+import { isMember } from "../db/rooms";
+import { ForbiddenError } from "../lib/errors";
 
 const PRESENCE_WINDOW_MS = 10 * 60 * 1000;
 
@@ -29,11 +32,15 @@ function signalFromEventType(type: string): string {
   }
 }
 
-export function presenceRoutes(db: Database): Hono {
-  const router = new Hono();
+export function presenceRoutes(db: Database): Hono<AppEnv> {
+  const router = new Hono<AppEnv>();
 
   router.get("/rooms/:roomId/presence", (c) => {
     const roomId = c.req.param("roomId");
+    const userId = c.get("userId");
+    if (!isMember(db, roomId, userId)) {
+      throw new ForbiddenError("Not a member of this room");
+    }
     const now = Date.now();
     const cutoff = now - PRESENCE_WINDOW_MS;
 

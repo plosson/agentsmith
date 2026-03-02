@@ -7,13 +7,10 @@ import { verifySessionToken } from "../lib/jwt";
 export function authMiddleware(db: Database): MiddlewareHandler {
   return async (c, next) => {
     const authHeader = c.req.header("Authorization");
-    const queryToken = c.req.query("token");
 
     let token: string;
     if (authHeader?.startsWith("Bearer ")) {
       token = authHeader.slice(7);
-    } else if (queryToken) {
-      token = queryToken;
     } else {
       throw new UnauthorizedError();
     }

@@ -48,7 +48,7 @@ describe("Presence route", () => {
       await emitEvent(room.id, "plugin-1", "alice@test.com", "sess-1", "hook.Stop");
 
       const res = await ctx.app.request(`/api/v1/rooms/${room.id}/presence`, {
-        headers: await authHeader("web-user-1", "bob@test.com"),
+        headers: await authHeader("plugin-1", "alice@test.com"),
       });
       expect(res.status).toBe(200);
       const json = await res.json();
@@ -66,8 +66,9 @@ describe("Presence route", () => {
       await emitEvent(room.id, "plugin-1", "alice@test.com", "sess-1", "hook.Stop");
       await emitEvent(room.id, "plugin-2", "bob@test.com", "sess-2", "hook.PreToolUse");
 
+      // plugin-1 is a member (via createRoom + emitEvent)
       const res = await ctx.app.request(`/api/v1/rooms/${room.id}/presence`, {
-        headers: await authHeader("web-user-1", "viewer@test.com"),
+        headers: await authHeader("plugin-1", "alice@test.com"),
       });
       const json = await res.json();
       expect(json.sessions).toHaveLength(2);
@@ -78,7 +79,7 @@ describe("Presence route", () => {
       const room = await createRoom("test-room", "plugin-1", "alice@test.com");
 
       const res = await ctx.app.request(`/api/v1/rooms/${room.id}/presence`, {
-        headers: await authHeader("web-user-1", "bob@test.com"),
+        headers: await authHeader("plugin-1", "alice@test.com"),
       });
       expect(res.status).toBe(200);
       const json = await res.json();
@@ -110,7 +111,7 @@ describe("Presence route", () => {
         );
 
       const res = await ctx.app.request(`/api/v1/rooms/${room.id}/presence`, {
-        headers: await authHeader("web-user-1", "bob@test.com"),
+        headers: await authHeader("plugin-1", "alice@test.com"),
       });
       const json = await res.json();
       expect(json.sessions).toHaveLength(0);

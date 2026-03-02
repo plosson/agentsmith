@@ -31,6 +31,20 @@ describe("Event routes", () => {
     };
   }
 
+  function addMember(roomId: string, sub: string, email: string) {
+    // Upsert user then add as member directly (no event side effects)
+    ctx.db
+      .query(
+        "INSERT INTO users (id, email, created_at) VALUES (?, ?, ?) ON CONFLICT(id) DO NOTHING",
+      )
+      .run(sub, email, Date.now());
+    ctx.db
+      .query(
+        "INSERT INTO room_members (room_id, user_id, joined_at) VALUES (?, ?, ?) ON CONFLICT(room_id, user_id) DO NOTHING",
+      )
+      .run(roomId, sub, Date.now());
+  }
+
   // --- Plugin client emits session signals ---
 
   describe("POST /api/v1/rooms/:roomId/events (plugin emits signal)", () => {
@@ -306,6 +320,7 @@ describe("Event routes", () => {
       });
 
       // Poll should only return the broadcast event
+      addMember(room.id, "web-user-1", "viewer@test.com");
       const res = await ctx.app.request(`/api/v1/rooms/${room.id}/events?since=0&limit=50`, {
         headers: await authHeader("web-user-1", "viewer@test.com"),
       });
@@ -330,6 +345,7 @@ describe("Event routes", () => {
         body: JSON.stringify(makeEvent(room.id)),
       });
 
+      addMember(room.id, "web-user-1", "bob@test.com");
       const res = await ctx.app.request(`/api/v1/rooms/${room.id}/events?since=0&limit=50`, {
         headers: await authHeader("web-user-1", "bob@test.com"),
       });
@@ -345,6 +361,7 @@ describe("Event routes", () => {
     it("returns 400 when since param missing", async () => {
       ctx = createTestContext();
       const room = await createRoom("test-room", "plugin-1", "alice@test.com");
+      addMember(room.id, "web-user-1", "bob@test.com");
       const res = await ctx.app.request(`/api/v1/rooms/${room.id}/events`, {
         headers: await authHeader("web-user-1", "bob@test.com"),
       });
@@ -354,6 +371,7 @@ describe("Event routes", () => {
     it("returns empty array when no new events", async () => {
       ctx = createTestContext();
       const room = await createRoom("test-room", "plugin-1", "alice@test.com");
+      addMember(room.id, "web-user-1", "bob@test.com");
       const res = await ctx.app.request(
         `/api/v1/rooms/${room.id}/events?since=${Date.now()}&limit=50`,
         { headers: await authHeader("web-user-1", "bob@test.com") },
@@ -375,6 +393,7 @@ describe("Event routes", () => {
         body: JSON.stringify(makeEvent(room.id)),
       });
 
+      addMember(room.id, "web-user-1", "bob@test.com");
       const res = await ctx.app.request(
         `/api/v1/rooms/${room.id}/events?since=0&limit=50&format=claude_code_v27`,
         { headers: await authHeader("web-user-1", "bob@test.com") },
@@ -410,6 +429,7 @@ describe("Event routes", () => {
     it("returns 200 with text/event-stream content type", async () => {
       ctx = createTestContext();
       await createRoom("test-room", "plugin-1", "alice@test.com");
+      addMember("test-room", "web-1", "bob@test.com");
 
       const res = await ctx.app.request("/api/v1/rooms/test-room/events/stream?since=0", {
         headers: await authHeader("web-1", "bob@test.com"),
@@ -432,6 +452,7 @@ describe("Event routes", () => {
         body: JSON.stringify(makeEvent(room.id)),
       });
 
+      addMember(room.id, "web-1", "bob@test.com");
       const res = await ctx.app.request(`/api/v1/rooms/${room.id}/events/stream?since=0`, {
         headers: await authHeader("web-1", "bob@test.com"),
       });
@@ -456,6 +477,7 @@ describe("Event routes", () => {
     it("receives live events via bus publish", async () => {
       ctx = createTestContext();
       await createRoom("test-room", "plugin-1", "alice@test.com");
+      addMember("test-room", "web-1", "bob@test.com");
 
       const res = await ctx.app.request("/api/v1/rooms/test-room/events/stream?since=0", {
         headers: await authHeader("web-1", "bob@test.com"),
@@ -493,6 +515,7 @@ describe("Event routes", () => {
     it("POST broadcast event is delivered to SSE subscribers", async () => {
       ctx = createTestContext();
       const room = await createRoom("test-room", "plugin-1", "alice@test.com");
+      addMember(room.id, "web-1", "bob@test.com");
 
       // Connect SSE stream
       const sseRes = await ctx.app.request(`/api/v1/rooms/${room.id}/events/stream?since=0`, {
@@ -526,6 +549,7 @@ describe("Event routes", () => {
     it("targeted events are NOT published to SSE", async () => {
       ctx = createTestContext();
       await createRoom("test-room", "plugin-1", "alice@test.com");
+      addMember("test-room", "web-1", "bob@test.com");
 
       // Verify subscriber count is 0 before connect
       expect(ctx.bus.subscriberCount("test-room")).toBe(0);
@@ -580,16 +604,16 @@ describe("Event routes", () => {
       }
     });
 
-    it("supports ?token= query param auth", async () => {
+    it("rejects ?token= query param (requires Authorization header)", async () => {
       ctx = createTestContext();
       await createRoom("test-room", "plugin-1", "alice@test.com");
+      addMember("test-room", "web-1", "bob@test.com");
 
       const token = await makeToken("web-1", "bob@test.com");
       const res = await ctx.app.request(
         `/api/v1/rooms/test-room/events/stream?since=0&token=${token}`,
       );
-      expect(res.status).toBe(200);
-      expect(res.headers.get("content-type")).toContain("text/event-stream");
+      expect(res.status).toBe(401);
     });
 
     it("returns 401 without auth", async () => {

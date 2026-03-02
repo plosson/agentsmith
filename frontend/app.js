@@ -284,7 +284,7 @@ function clearPolling() {
   pollTimers.forEach(clearInterval);
   pollTimers = [];
   if (activeEventSource) {
-    activeEventSource.close();
+    activeEventSource.abort();
     activeEventSource = null;
   }
 }
@@ -496,29 +496,57 @@ async function renderRoomDetail(app, roomId) {
   }
 
   function connectEventStream(room, since) {
-    const url = `${API_BASE}/rooms/${encodeURIComponent(room)}/events/stream?since=${since}&token=${authToken}`;
-    const es = new EventSource(url);
-    activeEventSource = es;
+    const url = `${API_BASE}/rooms/${encodeURIComponent(room)}/events/stream?since=${since}`;
+    const controller = new AbortController();
+    activeEventSource = controller;
     stopEventPolling();
 
-    es.addEventListener('event', (e) => {
+    (async () => {
       try {
-        const event = JSON.parse(e.data);
-        appendEvent(event);
-        if (event.created_at > latestTs) latestTs = event.created_at;
-      } catch (_) { /* ignore parse errors */ }
-    });
+        const res = await fetch(url, {
+          headers: { 'Authorization': `Bearer ${authToken}` },
+          signal: controller.signal,
+        });
+        if (!res.ok || !res.body) throw new Error(`SSE ${res.status}`);
 
-    es.onerror = () => {
-      es.close();
-      if (activeEventSource === es) activeEventSource = null;
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buf = '';
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buf += decoder.decode(value, { stream: true });
+
+          const blocks = buf.split('\n\n');
+          buf = blocks.pop();
+          for (const block of blocks) {
+            let eventType = '', data = '';
+            for (const line of block.split('\n')) {
+              if (line.startsWith('event: ')) eventType = line.slice(7);
+              else if (line.startsWith('data: ')) data += line.slice(6);
+            }
+            if (eventType === 'event' && data) {
+              try {
+                const event = JSON.parse(data);
+                appendEvent(event);
+                if (event.created_at > latestTs) latestTs = event.created_at;
+              } catch (_) { /* ignore parse errors */ }
+            }
+          }
+        }
+      } catch (err) {
+        if (err.name === 'AbortError') return;
+      }
+      // Disconnected — fall back to polling and retry
+      if (activeEventSource === controller) activeEventSource = null;
       startEventPolling();
       sseRetryTimeout = setTimeout(() => {
         sseRetryTimeout = null;
         if (activeEventSource) return;
         connectEventStream(room, latestTs);
       }, 5000);
-    };
+    })();
   }
 
   try {
