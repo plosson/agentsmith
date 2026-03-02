@@ -128,7 +128,38 @@ if ($existingKey) {
     if ($LASTEXITCODE -ne 0) { exit 1 }
 }
 
-# ── Step 5: Restart proxy if running ──────────────────────────────────
+# ── Step 5: Preferences ──────────────────────────────────────────────
+
+function Set-AgentConfig($key, $value) {
+    $dir = Split-Path $configFile
+    if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
+    if (Test-Path $configFile) {
+        $lines = Get-Content $configFile
+        $found = $false
+        $lines = $lines | ForEach-Object {
+            if ($_ -match "^${key}=") { $found = $true; "${key}=${value}" } else { $_ }
+        }
+        if (-not $found) { $lines += "${key}=${value}" }
+        $lines | Set-Content $configFile
+    } else {
+        "${key}=${value}" | Set-Content $configFile
+    }
+}
+
+Write-Host ""
+$enableAll = Read-Host "  Enable AgentSmith in all projects? [Y/n]"
+if ($enableAll -notmatch "^[nN]") {
+    Set-AgentConfig "AGENTSMITH_ENABLED" "true"
+    Ok "Enabled in all projects"
+}
+
+$enableDebug = Read-Host "  Enable debug logging? [y/N]"
+if ($enableDebug -match "^[yY]") {
+    Set-AgentConfig "AGENTSMITH_DEBUG" "true"
+    Ok "Debug logging enabled"
+}
+
+# ── Step 6: Restart proxy if running ──────────────────────────────────
 
 $pidFile = Join-Path $env:USERPROFILE ".config\agentsmith\proxy.pid"
 if (Test-Path $pidFile) {

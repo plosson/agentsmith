@@ -115,7 +115,41 @@ else
   sh "$LINK_SCRIPT" "$token"
 fi
 
-# ── Step 5: Restart proxy if running ──────────────────────────────────
+# ── Step 5: Preferences ──────────────────────────────────────────────
+
+set_config() {
+  key="$1" value="$2"
+  mkdir -p "$(dirname "$CONFIG_FILE")"
+  if [ -f "$CONFIG_FILE" ] && grep -q "^${key}=" "$CONFIG_FILE" 2>/dev/null; then
+    tmp="$CONFIG_FILE.tmp.$$"
+    sed "s|^${key}=.*|${key}=${value}|" "$CONFIG_FILE" > "$tmp" && mv "$tmp" "$CONFIG_FILE"
+  else
+    echo "${key}=${value}" >> "$CONFIG_FILE"
+  fi
+}
+
+printf '\n'
+printf '  Enable AgentSmith in all projects? [Y/n] '
+read -r enable_all < /dev/tty
+case "$enable_all" in
+  [nN]*) ;;
+  *)
+    set_config "AGENTSMITH_ENABLED" "true"
+    ok "Enabled in all projects"
+    ;;
+esac
+
+printf '  Enable debug logging? [y/N] '
+read -r enable_debug < /dev/tty
+case "$enable_debug" in
+  [yY]*)
+    set_config "AGENTSMITH_DEBUG" "true"
+    ok "Debug logging enabled"
+    ;;
+  *) ;;
+esac
+
+# ── Step 6: Restart proxy if running ──────────────────────────────────
 
 PIDFILE="$HOME/.config/agentsmith/proxy.pid"
 if [ -f "$PIDFILE" ] && kill -0 "$(cat "$PIDFILE")" 2>/dev/null; then
