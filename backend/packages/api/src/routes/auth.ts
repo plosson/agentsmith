@@ -2,6 +2,8 @@ import type { Database } from "bun:sqlite";
 import { Hono } from "hono";
 import type { AppEnv } from "../app";
 import { createApiKey, deleteApiKey, listByUser } from "../db/api-keys";
+import { claimPendingUser } from "../db/users";
+import { config } from "../lib/config";
 import { NotFoundError, ValidationError } from "../lib/errors";
 import { signSessionToken, verifyGoogleToken } from "../lib/jwt";
 
@@ -28,7 +30,11 @@ export function authRoutes(db: Database): Hono<AppEnv> {
        ON CONFLICT(id) DO UPDATE SET email = excluded.email, display_name = excluded.display_name`,
     ).run(userId, google.email, google.name ?? null, Date.now());
 
+    // Migrate any pre-provisioned room memberships from pending placeholder
+    claimPendingUser(db, userId, google.email);
+
     const token = await signSessionToken(userId, google.email);
+    const isAdmin = config.adminUsers.includes(google.email.toLowerCase());
 
     return c.json({
       token,
@@ -37,6 +43,7 @@ export function authRoutes(db: Database): Hono<AppEnv> {
         email: google.email,
         name: google.name ?? null,
         picture: google.picture ?? null,
+        is_admin: isAdmin,
       },
     });
   });

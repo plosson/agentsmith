@@ -1,11 +1,20 @@
-import { afterEach, describe, expect, it } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it } from "bun:test";
+import { config } from "../lib/config";
 import { authHeader, createTestContext, type TestContext } from "../test-utils";
 
 describe("Room routes", () => {
   let ctx: TestContext;
+  const originalAdmins = [...config.adminUsers];
+
+  beforeEach(() => {
+    config.adminUsers.length = 0;
+    config.adminUsers.push("admin@test.com");
+  });
 
   afterEach(() => {
     ctx?.db.close();
+    config.adminUsers.length = 0;
+    config.adminUsers.push(...originalAdmins);
   });
 
   // --- Plugin client: creates a room to use for signaling ---
@@ -155,6 +164,314 @@ describe("Room routes", () => {
       ctx = createTestContext();
       const res = await ctx.app.request("/api/v1/rooms/nonexistent", {
         headers: await authHeader("web-user-1", "bob@test.com"),
+      });
+      expect(res.status).toBe(404);
+    });
+  });
+
+  // --- is_public field ---
+
+  describe("is_public field in responses", () => {
+    it("created room includes is_public: true by default", async () => {
+      ctx = createTestContext();
+      const res = await ctx.app.request("/api/v1/rooms", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(await authHeader("plugin-user-1", "alice@test.com")),
+        },
+        body: JSON.stringify({ id: "my-project" }),
+      });
+      const json = await res.json();
+      expect(json.is_public).toBe(true);
+    });
+
+    it("room list includes is_public", async () => {
+      ctx = createTestContext();
+      await ctx.app.request("/api/v1/rooms", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(await authHeader("plugin-user-1", "alice@test.com")),
+        },
+        body: JSON.stringify({ id: "my-project" }),
+      });
+      const res = await ctx.app.request("/api/v1/rooms", {
+        headers: await authHeader("plugin-user-1", "alice@test.com"),
+      });
+      const json = await res.json();
+      expect(json.rooms[0].is_public).toBe(true);
+    });
+
+    it("room detail includes is_public", async () => {
+      ctx = createTestContext();
+      await ctx.app.request("/api/v1/rooms", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(await authHeader("plugin-user-1", "alice@test.com")),
+        },
+        body: JSON.stringify({ id: "my-project" }),
+      });
+      const res = await ctx.app.request("/api/v1/rooms/my-project", {
+        headers: await authHeader("plugin-user-1", "alice@test.com"),
+      });
+      const json = await res.json();
+      expect(json.is_public).toBe(true);
+    });
+  });
+
+  // --- Admin routes ---
+
+  describe("PATCH /api/v1/rooms/:roomId (admin updates room)", () => {
+    it("admin can set room to private", async () => {
+      ctx = createTestContext();
+      // Create room as regular user
+      await ctx.app.request("/api/v1/rooms", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(await authHeader("user-1", "alice@test.com")),
+        },
+        body: JSON.stringify({ id: "my-project" }),
+      });
+      // Admin sets it to private
+      const res = await ctx.app.request("/api/v1/rooms/my-project", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          ...(await authHeader("admin-1", "admin@test.com")),
+        },
+        body: JSON.stringify({ is_public: false }),
+      });
+      expect(res.status).toBe(200);
+      const json = await res.json();
+      expect(json.is_public).toBe(false);
+    });
+
+    it("admin can set room back to public", async () => {
+      ctx = createTestContext();
+      await ctx.app.request("/api/v1/rooms", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(await authHeader("user-1", "alice@test.com")),
+        },
+        body: JSON.stringify({ id: "my-project" }),
+      });
+      // Set to private
+      await ctx.app.request("/api/v1/rooms/my-project", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          ...(await authHeader("admin-1", "admin@test.com")),
+        },
+        body: JSON.stringify({ is_public: false }),
+      });
+      // Set back to public
+      const res = await ctx.app.request("/api/v1/rooms/my-project", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          ...(await authHeader("admin-1", "admin@test.com")),
+        },
+        body: JSON.stringify({ is_public: true }),
+      });
+      expect(res.status).toBe(200);
+      const json = await res.json();
+      expect(json.is_public).toBe(true);
+    });
+
+    it("non-admin gets 403", async () => {
+      ctx = createTestContext();
+      await ctx.app.request("/api/v1/rooms", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(await authHeader("user-1", "alice@test.com")),
+        },
+        body: JSON.stringify({ id: "my-project" }),
+      });
+      const res = await ctx.app.request("/api/v1/rooms/my-project", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          ...(await authHeader("user-1", "alice@test.com")),
+        },
+        body: JSON.stringify({ is_public: false }),
+      });
+      expect(res.status).toBe(403);
+    });
+
+    it("returns 404 for non-existent room", async () => {
+      ctx = createTestContext();
+      const res = await ctx.app.request("/api/v1/rooms/nonexistent", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          ...(await authHeader("admin-1", "admin@test.com")),
+        },
+        body: JSON.stringify({ is_public: false }),
+      });
+      expect(res.status).toBe(404);
+    });
+
+    it("returns 400 for invalid body", async () => {
+      ctx = createTestContext();
+      await ctx.app.request("/api/v1/rooms", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(await authHeader("user-1", "alice@test.com")),
+        },
+        body: JSON.stringify({ id: "my-project" }),
+      });
+      const res = await ctx.app.request("/api/v1/rooms/my-project", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          ...(await authHeader("admin-1", "admin@test.com")),
+        },
+        body: JSON.stringify({ is_public: "not-a-bool" }),
+      });
+      expect(res.status).toBe(400);
+    });
+  });
+
+  describe("PUT /api/v1/rooms/:roomId/members/:userEmail (admin adds member)", () => {
+    it("admin can add a member by email", async () => {
+      ctx = createTestContext();
+      // Create room + ensure both users exist
+      await ctx.app.request("/api/v1/rooms", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(await authHeader("user-1", "alice@test.com")),
+        },
+        body: JSON.stringify({ id: "my-project" }),
+      });
+      // Ensure bob exists in users table
+      await ctx.app.request("/api/v1/rooms", {
+        headers: await authHeader("user-2", "bob@test.com"),
+      });
+      // Admin adds bob
+      const res = await ctx.app.request("/api/v1/rooms/my-project/members/bob@test.com", {
+        method: "PUT",
+        headers: await authHeader("admin-1", "admin@test.com"),
+      });
+      expect(res.status).toBe(200);
+      const json = await res.json();
+      expect(json.ok).toBe(true);
+    });
+
+    it("non-admin gets 403", async () => {
+      ctx = createTestContext();
+      await ctx.app.request("/api/v1/rooms", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(await authHeader("user-1", "alice@test.com")),
+        },
+        body: JSON.stringify({ id: "my-project" }),
+      });
+      const res = await ctx.app.request("/api/v1/rooms/my-project/members/bob@test.com", {
+        method: "PUT",
+        headers: await authHeader("user-1", "alice@test.com"),
+      });
+      expect(res.status).toBe(403);
+    });
+
+    it("creates pending user for non-existent email", async () => {
+      ctx = createTestContext();
+      await ctx.app.request("/api/v1/rooms", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(await authHeader("user-1", "alice@test.com")),
+        },
+        body: JSON.stringify({ id: "my-project" }),
+      });
+      const res = await ctx.app.request("/api/v1/rooms/my-project/members/nobody@test.com", {
+        method: "PUT",
+        headers: await authHeader("admin-1", "admin@test.com"),
+      });
+      expect(res.status).toBe(200);
+    });
+
+    it("returns 404 for non-existent room", async () => {
+      ctx = createTestContext();
+      const res = await ctx.app.request("/api/v1/rooms/nonexistent/members/alice@test.com", {
+        method: "PUT",
+        headers: await authHeader("admin-1", "admin@test.com"),
+      });
+      expect(res.status).toBe(404);
+    });
+  });
+
+  describe("DELETE /api/v1/rooms/:roomId/members/:userEmail (admin removes member)", () => {
+    it("admin can remove a member by email", async () => {
+      ctx = createTestContext();
+      await ctx.app.request("/api/v1/rooms", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(await authHeader("user-1", "alice@test.com")),
+        },
+        body: JSON.stringify({ id: "my-project" }),
+      });
+      // Verify alice is a member
+      const before = await ctx.app.request("/api/v1/rooms/my-project", {
+        headers: await authHeader("user-1", "alice@test.com"),
+      });
+      expect((await before.json()).members).toHaveLength(1);
+
+      // Admin removes alice
+      const res = await ctx.app.request("/api/v1/rooms/my-project/members/alice@test.com", {
+        method: "DELETE",
+        headers: await authHeader("admin-1", "admin@test.com"),
+      });
+      expect(res.status).toBe(200);
+    });
+
+    it("non-admin gets 403", async () => {
+      ctx = createTestContext();
+      await ctx.app.request("/api/v1/rooms", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(await authHeader("user-1", "alice@test.com")),
+        },
+        body: JSON.stringify({ id: "my-project" }),
+      });
+      const res = await ctx.app.request("/api/v1/rooms/my-project/members/alice@test.com", {
+        method: "DELETE",
+        headers: await authHeader("user-1", "alice@test.com"),
+      });
+      expect(res.status).toBe(403);
+    });
+
+    it("returns 404 for non-existent room", async () => {
+      ctx = createTestContext();
+      const res = await ctx.app.request("/api/v1/rooms/nonexistent/members/alice@test.com", {
+        method: "DELETE",
+        headers: await authHeader("admin-1", "admin@test.com"),
+      });
+      expect(res.status).toBe(404);
+    });
+
+    it("returns 404 for non-existent user", async () => {
+      ctx = createTestContext();
+      await ctx.app.request("/api/v1/rooms", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(await authHeader("user-1", "alice@test.com")),
+        },
+        body: JSON.stringify({ id: "my-project" }),
+      });
+      const res = await ctx.app.request("/api/v1/rooms/my-project/members/nobody@test.com", {
+        method: "DELETE",
+        headers: await authHeader("admin-1", "admin@test.com"),
       });
       expect(res.status).toBe(404);
     });

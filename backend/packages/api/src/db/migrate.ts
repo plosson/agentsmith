@@ -12,7 +12,8 @@ export function migrate(db: Database): void {
     CREATE TABLE IF NOT EXISTS rooms (
       id          TEXT PRIMARY KEY,
       created_by  TEXT NOT NULL REFERENCES users(id),
-      created_at  INTEGER NOT NULL
+      created_at  INTEGER NOT NULL,
+      is_public   INTEGER NOT NULL DEFAULT 1
     );
 
     CREATE TABLE IF NOT EXISTS room_members (
@@ -51,5 +52,13 @@ export function migrate(db: Database): void {
       last_used_at INTEGER
     );
     CREATE INDEX IF NOT EXISTS idx_api_keys_hash ON api_keys(key_hash);
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email ON users(email);
   `);
+
+  // Idempotent column additions for existing databases
+  try {
+    db.exec("ALTER TABLE rooms ADD COLUMN is_public INTEGER NOT NULL DEFAULT 1");
+  } catch {
+    // Column already exists
+  }
 }

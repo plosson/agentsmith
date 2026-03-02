@@ -111,7 +111,12 @@ export function eventRoutes(db: Database, bus: EventBus): Hono<AppEnv> {
     const format = c.req.query("format");
 
     // Parse comma-separated formats into mapper array
-    const formatNames = format ? format.split(",").map((f) => f.trim()).filter(Boolean) : [];
+    const formatNames = format
+      ? format
+          .split(",")
+          .map((f) => f.trim())
+          .filter(Boolean)
+      : [];
     const mappers = formatNames.map((name) => {
       const m = getMapper(name);
       if (!m) throw new ValidationError(`Unknown or non-mapper projection: ${name}`);
@@ -229,9 +234,7 @@ export function eventRoutes(db: Database, bus: EventBus): Hono<AppEnv> {
     }
 
     // Mapper: filter nulls
-    const events = result.events
-      .map((e) => projection.map(e))
-      .filter((e) => e !== null);
+    const events = result.events.map((e) => projection.map(e)).filter((e) => e !== null);
     return c.json({ events, latest_ts: result.latest_ts });
   });
 

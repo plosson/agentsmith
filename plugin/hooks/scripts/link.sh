@@ -3,10 +3,23 @@ set -e
 
 # ── AgentSmith link ─────────────────────────────────────────────────
 # Decodes an asm_ token and writes config values.
-# Usage: link.sh <token>
+# Usage: link.sh [-s local] <token>
 # ─────────────────────────────────────────────────────────────────────
 
-CONFIG_DIR="$HOME/.config/agentsmith"
+# ── Parse flags ────────────────────────────────────────────────────
+SCOPE="global"
+while [ $# -gt 1 ]; do
+  case "$1" in
+    -s) SCOPE="$2"; shift 2 ;;
+    *)  break ;;
+  esac
+done
+
+if [ "$SCOPE" = "local" ]; then
+  CONFIG_DIR=".claude/agentsmith"
+else
+  CONFIG_DIR="$HOME/.config/agentsmith"
+fi
 CONFIG_FILE="$CONFIG_DIR/config"
 
 # ── Helpers ──────────────────────────────────────────────────────────
@@ -31,7 +44,7 @@ set_config() {
 token=$(printf '%s' "$1" | tr -d '[:space:]')
 
 if [ -z "$token" ]; then
-  err "Usage: link.sh <token>"
+  err "Usage: link.sh [-s local] <token>"
   exit 1
 fi
 
@@ -65,15 +78,18 @@ api_key=$(printf '%s' "$json" | python3 -c "import sys,json; print(json.load(sys
   err "Invalid token payload (missing api_key)"
   exit 1
 }
+web_url=$(printf '%s' "$json" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('web_url',''))" 2>/dev/null)
 
 # Write config
 set_config "AGENTSMITH_SERVER_URL" "$server_url"
 set_config "AGENTSMITH_USER" "$email"
 set_config "AGENTSMITH_KEY" "$api_key"
+[ -n "$web_url" ] && set_config "AGENTSMITH_WEB_URL" "$web_url"
 
 # Show results with masked key
 masked_key=$(printf '%s' "$api_key" | cut -c1-8)
 ok "Server:  $server_url"
+[ -n "$web_url" ] && ok "Web:     $web_url"
 ok "User:    $email"
 ok "API key: ${masked_key}..."
 printf '\n'

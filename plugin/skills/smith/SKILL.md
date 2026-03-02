@@ -2,7 +2,7 @@
 name: smith
 description: "Manage Agent Smith"
 disable-model-invocation: true
-argument-hint: "[status|restart|setup|enable|disable]"
+argument-hint: "[status|restart|link|enable|disable]"
 ---
 
 The user ran `/smith $ARGUMENTS`.
@@ -27,96 +27,33 @@ Report the result to the user in a clean summary table.
 
 ---
 
-If `$ARGUMENTS` is **"setup"**, guide the user through configuring their AgentSmith connection.
+If `$ARGUMENTS` starts with **"link"**, link this session to an AgentSmith server using a token.
 
-**Step 1: Check current state**
+Parse the arguments: `/smith link <token> [local]`.
 
-Source `env.sh` to get all resolved values (including auto-detected defaults), then display them:
+- `<token>` is required — an `asm_` prefixed token obtained from the AgentSmith frontend.
 
+Run `link.sh` with the appropriate flags:
+
+If `local` was specified:
 ```bash
-. "${CLAUDE_PLUGIN_ROOT}/hooks/scripts/env.sh"
-echo "AGENTSMITH_SERVER_URL=${AGENTSMITH_SERVER_URL:-<not set>}"
-echo "AGENTSMITH_USER=${AGENTSMITH_USER}"
-echo "AGENTSMITH_ROOM=${AGENTSMITH_ROOM}"
-echo "AGENTSMITH_KEY=${AGENTSMITH_KEY:+****}"
+bash "${CLAUDE_PLUGIN_ROOT}/hooks/scripts/link.sh" -s local "<token>"
 ```
 
-Show the user a summary of their current configuration. Indicate which values come from config vs auto-detected defaults. Note that `AGENTSMITH_ROOM` defaults to `lobby`, `AGENTSMITH_USER` defaults to `git config user.email`, and `AGENTSMITH_KEY` is optional.
-
-**Step 2: Decide what to do based on the result**
-
-- If **all required fields** (`AGENTSMITH_SERVER_URL` and `AGENTSMITH_USER`) are already set → show the current config and ask the user if they want to change anything using `AskUserQuestion` with options "Looks good" and "Change settings". If they choose "Looks good", stop here.
-- If any required field is missing → proceed to collect the missing values (Steps 3-5).
-
-**Step 3: Ask for the server URL** (skip if already set and user didn't choose "Change settings")
-
-Use `AskUserQuestion` to ask: **"What is the AgentSmith server URL?"** with these options:
-- `http://localhost:6001` — "Local dev server"
-- `https://agentsmith.fly.dev` — "Production server"
-
-(The user can also type a custom URL via "Other".)
-
-**Step 4: Ask for the username** (skip if already set and user didn't choose "Change settings")
-
-First detect the git email:
+Otherwise:
 ```bash
-git config user.email 2>/dev/null
+bash "${CLAUDE_PLUGIN_ROOT}/hooks/scripts/link.sh" "<token>"
 ```
 
-Use `AskUserQuestion` to ask: **"What username should identify you?"** with these options:
-- The detected git email (if found) — "Auto-detected from git (Recommended)"
-- `other@example.com` — "Use a different email"
-
-(The user can type their actual email via "Other".)
-
-**Step 5: Ask for the room** (skip if already set and user didn't choose "Change settings")
-
-Use `AskUserQuestion` to ask: **"Which room should events be sent to?"** with these options:
-- `lobby` — "Default shared room (Recommended)"
-- `dev` — "Development room"
-
-(The user can also type a custom room name via "Other".)
-
-**Step 6: Ask for the scope**
-
-Use `AskUserQuestion` to ask: **"Save config for all projects or this project only?"** with these options:
-- `All projects (global)` — "Writes to ~/.config/agentsmith/config (Recommended)"
-- `This project only` — "Writes to .claude/agentsmith/config"
-
-**Step 7: Write the config**
-
-Based on the scope chosen, write **all collected values** to the chosen config file. Use the following bash pattern to upsert each key:
-
-```bash
-CONFIG_FILE="<path>"  # set to global or local path based on scope
-
-upsert() {
-  local KEY="$1" VALUE="$2"
-  mkdir -p "$(dirname "$CONFIG_FILE")"
-  touch "$CONFIG_FILE"
-  if grep -q "^${KEY}=" "$CONFIG_FILE"; then
-    sed -i '' "s|^${KEY}=.*|${KEY}=${VALUE}|" "$CONFIG_FILE"
-  else
-    echo "${KEY}=${VALUE}" >> "$CONFIG_FILE"
-  fi
-}
-
-upsert AGENTSMITH_SERVER_URL "<url>"
-upsert AGENTSMITH_USER "<user>"
-upsert AGENTSMITH_ROOM "<room>"
-```
-
-Only write keys that were collected/changed. Do not touch other keys in the file.
-
-**Step 8: Restart proxy and confirm**
-
-Restart the proxy to pick up the new config:
+Report the output to the user. If successful, restart the proxy to pick up the new config:
 
 ```bash
 bash "${CLAUDE_PLUGIN_ROOT}/hooks/scripts/init.sh" --restart
 ```
 
-Tell the user the config was saved and the proxy restarted. Suggest running `/smith status` to verify connectivity.
+Tell the user the link was established and suggest running `/smith status` to verify connectivity.
+
+If the token is missing, tell the user: **"Usage: `/smith link <token> [local]`"** — they can get a link token from the AgentSmith web frontend.
 
 ---
 
@@ -178,4 +115,4 @@ Tell the user AgentSmith is now disabled for this project. Remind them to restar
 
 ---
 
-If `$ARGUMENTS` is anything else, tell the user the available subcommands: `status`, `restart`, `setup`, `enable [room]`, `disable`.
+If `$ARGUMENTS` is anything else, tell the user the available subcommands: `status`, `restart`, `link <token> [local]`, `enable [room]`, `disable`.

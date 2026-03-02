@@ -32,11 +32,11 @@ print_banner() {
   local l1="" l2="" l3=""
   if [ -z "$AGENTSMITH_SERVER_URL" ]; then
     l2="not configured"
-    l3="visit https://agentsmith.me/#/link"
+    l3="visit ${AGENTSMITH_WEB_URL:-https://agentsmith.me}/#/link"
   else
     local mode="${AGENTSMITH_SERVER_MODE:-remote}"
     if [ "$mode" = "remote" ]; then
-      l1="url:    ${AGENTSMITH_CLIENT_URL:-…} -> ${AGENTSMITH_SERVER_URL}"
+      l1="url:    ${AGENTSMITH_CLIENT_URL:-…} -> ${AGENTSMITH_SERVER_URL} -> ${AGENTSMITH_WEB_URL}"
     else
       l1="url:    ${AGENTSMITH_CLIENT_URL:-…} (local)"
     fi
@@ -61,10 +61,13 @@ if [ "$1" = "--status" ]; then
 
   echo ""
   echo "=== CONFIG ==="
-  echo "server: ${AGENTSMITH_SERVER_URL:-<not set>}"
-  echo "room: ${AGENTSMITH_ROOM:-<not set>}"
-  echo "user: ${AGENTSMITH_USER:-<not set>}"
-  echo "key: ${AGENTSMITH_KEY:+****}"
+  for var in $(compgen -v AGENTSMITH_); do
+    if [ "$var" = "AGENTSMITH_KEY" ]; then
+      echo "$var=${!var:+****}"
+    else
+      echo "$var=${!var:-<not set>}"
+    fi
+  done
 
   echo ""
   echo "=== PROXY ==="
@@ -102,7 +105,7 @@ fi
 if [ "$1" = "--restart" ]; then
   stop_proxy
   if [ -z "$AGENTSMITH_SERVER_URL" ]; then
-    echo "No AGENTSMITH_SERVER_URL configured. Visit https://agentsmith.me/#/link"
+    echo "No AGENTSMITH_SERVER_URL configured. Visit ${AGENTSMITH_WEB_URL:-https://agentsmith.me}/#/link"
     exit 0
   fi
   start_proxy

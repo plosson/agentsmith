@@ -106,13 +106,20 @@ export function getResponse(body: unknown, room?: string, baseDir = DEFAULT_QUEU
   return Response.json(base);
 }
 
+export interface ForwardResult {
+  ok: boolean;
+  status?: number;
+  data?: unknown;
+  error?: string;
+}
+
 export async function forward(
   serverUrl: string,
   path: string,
   body: unknown,
   baseDir = DEFAULT_QUEUE_BASE,
   authHeader?: string,
-): Promise<void> {
+): Promise<ForwardResult> {
   try {
     const headers: Record<string, string> = { "Content-Type": "application/json" };
     if (authHeader) {
@@ -123,15 +130,25 @@ export async function forward(
       headers,
       body: JSON.stringify(body),
     });
-    const data = (await res.json()) as { success?: boolean; messages?: unknown[] };
+    const text = await res.text();
+    let data: { success?: boolean; messages?: unknown[] };
+    try {
+      data = JSON.parse(text) as typeof data;
+    } catch {
+      console.error(`[proxy] forward failed: non-JSON response (${res.status}): ${text.slice(0, 200)}`);
+      return { ok: false, status: res.status, error: text.slice(0, 200) };
+    }
     if (data.messages && data.messages.length > 0) {
       const roomMatch = path.match(/\/rooms\/([^/]+)\//);
       if (roomMatch) {
         enqueueMessages(roomMatch[1], data.messages, baseDir);
       }
     }
+    return { ok: res.ok, status: res.status, data };
   } catch (err) {
-    console.error(`[proxy] forward failed: ${err}`);
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`[proxy] forward failed: ${msg}`);
+    return { ok: false, error: msg };
   }
 }
 
@@ -270,17 +287,28 @@ export function startProxy(
       console.log(`[proxy] received ${eventType} for room ${room}`);
       const authKey = config.AGENTSMITH_KEY ?? "";
 
-      if (config.AGENTSMITH_DEBUG === "true") {
+      const debug = config.AGENTSMITH_DEBUG === "true";
+
+      if (debug) {
         debugLog(apiPath, envelope);
       }
 
+      let forwardResult: ForwardResult | undefined;
       if (mode === "local") {
         forwardLocal(apiPath, envelope, queueBaseDir);
+      } else if (debug) {
+        forwardResult = await forward(serverUrl, apiPath, envelope, queueBaseDir, authKey ? `Bearer ${authKey}` : undefined);
       } else {
         forward(serverUrl, apiPath, envelope, queueBaseDir, authKey ? `Bearer ${authKey}` : undefined);
       }
 
-      return getResponse(envelope, room, queueBaseDir);
+      const response = getResponse(envelope, room, queueBaseDir);
+      if (forwardResult) {
+        const base = (await response.json()) as Record<string, unknown>;
+        base.systemMessage = `[AgentSmith] forward: ${JSON.stringify(forwardResult)}`;
+        return Response.json(base);
+      }
+      return response;
     },
   });
 

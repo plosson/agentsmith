@@ -26,6 +26,10 @@ export const pollEventsQuerySchema = z.object({
   format: z.string().min(1).optional(),
 });
 
+export const updateRoomSchema = z.object({
+  is_public: z.boolean(),
+});
+
 export const deviceTokenSchema = z.object({
   device_code: z.string().min(1),
 });

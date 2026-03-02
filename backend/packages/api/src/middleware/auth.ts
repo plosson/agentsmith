@@ -25,7 +25,7 @@ export function authMiddleware(db: Database): MiddlewareHandler {
       ).run(payload.sub, payload.email, Date.now());
 
       c.set("userId", payload.sub);
-      c.set("userEmail", payload.email);
+      c.set("userEmail", payload.email.toLowerCase());
       await next();
       return;
     } catch {
@@ -47,7 +47,7 @@ export function authMiddleware(db: Database): MiddlewareHandler {
 
         updateLastUsed(db, apiKey.id);
         c.set("userId", apiKey.user_id);
-        c.set("userEmail", user.email);
+        c.set("userEmail", user.email.toLowerCase());
         await next();
         return;
       }

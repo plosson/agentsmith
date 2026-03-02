@@ -24,6 +24,16 @@ printf '\n'
 
 info "Uninstalling AgentSmith..."
 
+# ── Stop proxy if running ─────────────────────────────────────────────
+
+PIDFILE="$HOME/.config/agentsmith/proxy.pid"
+if [ -f "$PIDFILE" ] && kill -0 "$(cat "$PIDFILE")" 2>/dev/null; then
+  info "Stopping proxy..."
+  kill "$(cat "$PIDFILE")" 2>/dev/null
+  rm -f "$PIDFILE"
+  ok "Proxy stopped"
+fi
+
 # ── Uninstall plugin from all scopes ─────────────────────────────────
 
 for scope in user project local; do

@@ -54,12 +54,15 @@ mkdir -p "$DATA_DIR"
 JWT_SECRET="${JWT_SECRET:-local-dev-jwt-secret-do-not-use-in-prod}"
 GOOGLE_CLIENT_ID="${GOOGLE_CLIENT_ID:-981559040299-kvtuldub9dklomij0se0fgr5ba6f8cpg.apps.googleusercontent.com}"
 
+ADMIN_USERS="${ADMIN_USERS:-palosson@hex-rays.com}"
+
 docker run -d \
   --name "$CONTAINER_NAME" \
   -p "$API_PORT:3000" \
   -v "$DATA_DIR:/data" \
   -e JWT_SECRET="$JWT_SECRET" \
   -e GOOGLE_CLIENT_ID="$GOOGLE_CLIENT_ID" \
+  -e ADMIN_USERS="$ADMIN_USERS" \
   agentsmith-api >/dev/null
 
 # Wait for API to be ready
@@ -73,22 +76,7 @@ for i in $(seq 1 30); do
   sleep 0.5
 done
 
-# -- 2. Ensure config --------------------------------------------------------
-echo "==> Checking config at $CONFIG_FILE..."
-mkdir -p "$CONFIG_DIR"
-
-if [ ! -f "$CONFIG_FILE" ]; then
-  echo "AGENTSMITH_SERVER_URL=$API_URL" > "$CONFIG_FILE"
-  echo "    Created config with AGENTSMITH_SERVER_URL=$API_URL"
-elif grep -q "^AGENTSMITH_SERVER_URL=" "$CONFIG_FILE"; then
-  sed -i '' "s|^AGENTSMITH_SERVER_URL=.*|AGENTSMITH_SERVER_URL=$API_URL|" "$CONFIG_FILE"
-  echo "    Updated AGENTSMITH_SERVER_URL=$API_URL"
-else
-  echo "AGENTSMITH_SERVER_URL=$API_URL" >> "$CONFIG_FILE"
-  echo "    Added AGENTSMITH_SERVER_URL=$API_URL"
-fi
-
-# -- 3. Serve frontend -------------------------------------------------------
+# -- 2. Serve frontend -------------------------------------------------------
 echo "==> Starting web server on port $WEB_PORT..."
 cd "$SCRIPT_DIR/frontend"
 python3 -m http.server "$WEB_PORT" --bind 127.0.0.1 >/dev/null 2>&1 &

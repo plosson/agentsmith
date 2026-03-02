@@ -23,6 +23,20 @@ Write-Host ""
 
 Info "Uninstalling AgentSmith..."
 
+# ── Stop proxy if running ─────────────────────────────────────────────
+
+$pidFile = Join-Path $env:USERPROFILE ".config\agentsmith\proxy.pid"
+if (Test-Path $pidFile) {
+    $pid = Get-Content $pidFile -ErrorAction SilentlyContinue
+    $proc = Get-Process -Id $pid -ErrorAction SilentlyContinue
+    if ($proc) {
+        Info "Stopping proxy..."
+        Stop-Process -Id $pid -Force -ErrorAction SilentlyContinue
+        Remove-Item $pidFile -Force -ErrorAction SilentlyContinue
+        Ok "Proxy stopped"
+    }
+}
+
 # ── Uninstall plugin from all scopes ─────────────────────────────────
 
 foreach ($scope in @("user", "project", "local")) {
