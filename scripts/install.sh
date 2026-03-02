@@ -23,6 +23,20 @@ err()   { printf '\033[1;31m ✗\033[0m  %s\n' "$*" >&2; }
 # Check if a key exists in a JSON file (simple string match)
 json_has_key() { [ -f "$1" ] && grep -q "\"$2\"" "$1"; }
 
+# Extract the installed scope ("user", "project", "local") for a plugin key
+installed_scope() {
+  [ -f "$INSTALLED" ] || return 1
+  awk -v key="\"$1\"" '
+    $0 ~ key { found=1 }
+    found && /"scope"/ {
+      gsub(/.*"scope" *: *"/, "")
+      gsub(/".*/, "")
+      print
+      exit
+    }
+  ' "$INSTALLED"
+}
+
 # ── Banner ───────────────────────────────────────────────────────────
 
 printf '\n'
@@ -65,11 +79,7 @@ fi
 
 # ── Step 3: Install or update plugin ─────────────────────────────────
 
-if json_has_key "$INSTALLED" "$PLUGIN_KEY"; then
-  info "Plugin already installed — updating..."
-  claude plugin update "$PLUGIN_KEY" 2>&1 || true
-  ok "Plugin updated"
-else
+install_fresh() {
   printf '\n'
   info "Where should AgentSmith be installed?"
   printf '\n'
@@ -90,6 +100,28 @@ else
   # shellcheck disable=SC2086
   claude plugin install "${PLUGIN_KEY}" $scope_flag 2>&1 || true
   ok "Plugin installed"
+}
+
+if json_has_key "$INSTALLED" "$PLUGIN_KEY"; then
+  info "Plugin already installed — updating..."
+  scope=$(installed_scope "$PLUGIN_KEY")
+  case "$scope" in
+    project) update_flag="-s project" ;;
+    local)   update_flag="-s local" ;;
+    *)       update_flag="" ;;
+  esac
+  # Capture output — CLI may return exit 0 even on failure
+  # shellcheck disable=SC2086
+  update_output=$(claude plugin update "$PLUGIN_KEY" $update_flag 2>&1) || true
+  printf '%s\n' "$update_output"
+  if printf '%s' "$update_output" | grep -qi "failed\|error\|not installed"; then
+    info "Update failed — reinstalling..."
+    install_fresh
+  else
+    ok "Plugin updated"
+  fi
+else
+  install_fresh
 fi
 
 # ── Step 4: Link token ───────────────────────────────────────────────
