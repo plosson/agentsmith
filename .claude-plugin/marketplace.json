@@ -5,12 +5,12 @@
   },
   "metadata": {
     "description": "Room-scoped event fabric connecting local Claude Code sessions with a shared web canvas",
-    "pluginRoot": "./plugin"
+    "pluginRoot": "./"
   },
   "plugins": [
     {
       "name": "agentsmith",
-      "source": "./",
+      "source": "./plugin",
       "description": "Collaborative awareness for Claude Code sessions — ambient presence, room-scoped events, and bidirectional interactions"
     }
   ]
