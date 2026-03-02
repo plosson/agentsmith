@@ -1,5 +1,6 @@
 import type { MapperProjection, Projection, ReducerProjection } from "./types";
 import { avatarActions } from "./avatar-actions";
+import { leaderboard } from "./leaderboard";
 
 export type { MapperProjection, Projection, ReducerProjection } from "./types";
 
@@ -32,3 +33,4 @@ export function listProjections(): Projection[] {
 
 // --- Register all projections here ---
 register(avatarActions);
+register(leaderboard);

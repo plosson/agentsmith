@@ -1,5 +1,5 @@
-import type { z } from "zod/v4";
 import type { Event } from "@agentsmith/shared";
+import type { z } from "zod/v4";
 
 /** Transforms a single event into 0 or 1 output. Return null to filter out. */
 export interface MapperProjection<T = unknown> {
