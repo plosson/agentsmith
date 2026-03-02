@@ -181,10 +181,11 @@ claude --plugin-dir ./plugin
 
 ## Deploy
 
-To deploy the backend :
+To deploy the backend, the changes must be committe & pushed (as the siteio app is deployed from github)
 
 ```bash
-siteio apps deploy agentsmith-api
+cd backend
+siteio apps deploy
 ```
 
 To deploy the frontend  :

@@ -18,11 +18,6 @@ VOLUME /data
 EXPOSE 3000
 
 ENV DATABASE_PATH=/data/agentsmith.db
-ENV AUTH_DISABLED=
-ENV AUTH0_DOMAIN=
-ENV AUTH0_AUDIENCE=
-ENV AUTH0_CLIENT_ID=
-# AUTH0_CLIENT_SECRET should be passed at runtime via docker run -e or compose
 ENV PORT=3000
 
 CMD ["bun", "run", "packages/api/src/index.ts"]
