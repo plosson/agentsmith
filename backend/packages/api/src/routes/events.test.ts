@@ -1,11 +1,20 @@
-import { afterEach, describe, expect, it } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it } from "bun:test";
+import { config } from "../lib/config";
 import { authHeader, createTestContext, makeToken, type TestContext } from "../test-utils";
 
 describe("Event routes", () => {
   let ctx: TestContext;
+  const originalAdmins = [...config.adminUsers];
+
+  beforeEach(() => {
+    config.adminUsers.length = 0;
+    config.adminUsers.push("admin@test.com");
+  });
 
   afterEach(() => {
     ctx?.db.close();
+    config.adminUsers.length = 0;
+    config.adminUsers.push(...originalAdmins);
   });
 
   async function createRoom(name: string, sub: string, email: string) {
@@ -381,27 +390,87 @@ describe("Event routes", () => {
       expect(json.events).toHaveLength(0);
     });
 
-    it("supports ?format= query param (passthrough for same format)", async () => {
+    it("returns 400 for unknown projection format", async () => {
       ctx = createTestContext();
       const room = await createRoom("test-room", "plugin-1", "alice@test.com");
+      addMember(room.id, "web-user-1", "bob@test.com");
+      const res = await ctx.app.request(
+        `/api/v1/rooms/${room.id}/events?since=0&limit=50&format=nonexistent`,
+        { headers: await authHeader("web-user-1", "bob@test.com") },
+      );
+      expect(res.status).toBe(400);
+    });
+
+    it("applies mapper projection via ?format=avatar_actions", async () => {
+      ctx = createTestContext();
+      const room = await createRoom("test-room", "plugin-1", "alice@test.com");
+
+      // Insert a PreToolUse event
       await ctx.app.request(`/api/v1/rooms/${room.id}/events`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           ...(await authHeader("plugin-1", "alice@test.com")),
         },
-        body: JSON.stringify(makeEvent(room.id)),
+        body: JSON.stringify(makeEvent(room.id, { type: "hook.PreToolUse" })),
+      });
+
+      // Insert a Notification event (should be filtered by avatar_actions)
+      await ctx.app.request(`/api/v1/rooms/${room.id}/events`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(await authHeader("plugin-1", "alice@test.com")),
+        },
+        body: JSON.stringify(makeEvent(room.id, { type: "hook.Notification" })),
       });
 
       addMember(room.id, "web-user-1", "bob@test.com");
       const res = await ctx.app.request(
-        `/api/v1/rooms/${room.id}/events?since=0&limit=50&format=claude_code_v27`,
+        `/api/v1/rooms/${room.id}/events?since=0&limit=50&format=avatar_actions`,
         { headers: await authHeader("web-user-1", "bob@test.com") },
       );
       expect(res.status).toBe(200);
       const json = await res.json();
+      // Only PreToolUse maps to an action; Notification returns null and is filtered
       expect(json.events).toHaveLength(1);
-      expect(json.events[0].format).toBe("claude_code_v27");
+      expect(json.events[0].action).toBe("hands_wiggle");
+      expect(json.events[0].user_id).toBe("alice@test.com");
+    });
+
+    it("applies reducer projection via ?format=leaderboard", async () => {
+      ctx = createTestContext();
+      const room = await createRoom("test-room", "plugin-1", "alice@test.com");
+
+      await ctx.app.request(`/api/v1/rooms/${room.id}/events`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(await authHeader("plugin-1", "alice@test.com")),
+        },
+        body: JSON.stringify(makeEvent(room.id, { type: "hook.PreToolUse" })),
+      });
+      await ctx.app.request(`/api/v1/rooms/${room.id}/events`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(await authHeader("plugin-1", "alice@test.com")),
+        },
+        body: JSON.stringify(makeEvent(room.id, { type: "hook.Stop" })),
+      });
+
+      addMember(room.id, "web-user-1", "bob@test.com");
+      const res = await ctx.app.request(
+        `/api/v1/rooms/${room.id}/events?since=0&limit=50&format=leaderboard`,
+        { headers: await authHeader("web-user-1", "bob@test.com") },
+      );
+      expect(res.status).toBe(200);
+      const json = await res.json();
+      // Reducer returns aggregated state, not event array
+      expect(json.users).toBeDefined();
+      expect(json.users).toHaveLength(1);
+      expect(json.users[0].user_id).toBe("alice@test.com");
+      expect(json.users[0].score).toBe(5); // 2 (PreToolUse) + 3 (Stop)
     });
   });
 
@@ -622,6 +691,93 @@ describe("Event routes", () => {
 
       const res = await ctx.app.request("/api/v1/rooms/test-room/events/stream?since=0");
       expect(res.status).toBe(401);
+    });
+  });
+
+  // --- Private room enforcement ---
+
+  describe("POST /api/v1/rooms/:roomId/events (private room enforcement)", () => {
+    async function makePrivateRoom(name: string) {
+      // Create room as regular user
+      await createRoom(name, "user-1", "alice@test.com");
+      // Admin sets it to private
+      await ctx.app.request(`/api/v1/rooms/${name}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          ...(await authHeader("admin-1", "admin@test.com")),
+        },
+        body: JSON.stringify({ is_public: false }),
+      });
+    }
+
+    it("allows members to post events to private rooms", async () => {
+      ctx = createTestContext();
+      await makePrivateRoom("private-room");
+      // user-1 (alice) is the creator, auto-joined as member
+      const res = await ctx.app.request("/api/v1/rooms/private-room/events", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(await authHeader("user-1", "alice@test.com")),
+        },
+        body: JSON.stringify(makeEvent("private-room")),
+      });
+      expect(res.status).toBe(201);
+    });
+
+    it("rejects non-members from posting to private rooms", async () => {
+      ctx = createTestContext();
+      await makePrivateRoom("private-room");
+      // bob is NOT a member
+      const res = await ctx.app.request("/api/v1/rooms/private-room/events", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(await authHeader("user-2", "bob@test.com")),
+        },
+        body: JSON.stringify(makeEvent("private-room")),
+      });
+      expect(res.status).toBe(403);
+    });
+
+    it("allows anyone to post to public rooms (auto-join)", async () => {
+      ctx = createTestContext();
+      await createRoom("public-room", "user-1", "alice@test.com");
+      // bob can post to a public room (auto-joins)
+      const res = await ctx.app.request("/api/v1/rooms/public-room/events", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(await authHeader("user-2", "bob@test.com")),
+        },
+        body: JSON.stringify(makeEvent("public-room")),
+      });
+      expect(res.status).toBe(201);
+    });
+
+    it("admin-added members can post to private rooms", async () => {
+      ctx = createTestContext();
+      await makePrivateRoom("private-room");
+      // Ensure bob exists in users table
+      await ctx.app.request("/api/v1/rooms", {
+        headers: await authHeader("user-2", "bob@test.com"),
+      });
+      // Admin adds bob as member
+      await ctx.app.request("/api/v1/rooms/private-room/members/bob@test.com", {
+        method: "PUT",
+        headers: await authHeader("admin-1", "admin@test.com"),
+      });
+      // bob can now post
+      const res = await ctx.app.request("/api/v1/rooms/private-room/events", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(await authHeader("user-2", "bob@test.com")),
+        },
+        body: JSON.stringify(makeEvent("private-room")),
+      });
+      expect(res.status).toBe(201);
     });
   });
 });
