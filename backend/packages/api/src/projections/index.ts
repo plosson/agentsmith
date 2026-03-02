@@ -30,4 +30,6 @@ export function listProjections(): Projection[] {
 }
 
 // --- Register all projections here ---
-// (imports added as projections are created in subsequent tasks)
+import { leaderboard } from "./leaderboard";
+
+register(leaderboard);
