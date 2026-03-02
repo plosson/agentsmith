@@ -1,6 +1,6 @@
-import type { MapperProjection, Projection, ReducerProjection } from "./types";
 import { avatarActions } from "./avatar-actions";
 import { leaderboard } from "./leaderboard";
+import type { MapperProjection, Projection, ReducerProjection } from "./types";
 
 export type { MapperProjection, Projection, ReducerProjection } from "./types";
 
