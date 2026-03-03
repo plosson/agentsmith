@@ -2,6 +2,7 @@ import type { Database } from "bun:sqlite";
 import { Hono } from "hono";
 import type { AppEnv } from "../app";
 import { isMember } from "../db/rooms";
+import { config } from "../lib/config";
 import { ForbiddenError } from "../lib/errors";
 
 const PRESENCE_WINDOW_MS = 10 * 60 * 1000;
@@ -38,7 +39,9 @@ export function presenceRoutes(db: Database): Hono<AppEnv> {
   router.get("/rooms/:roomId/presence", (c) => {
     const roomId = c.req.param("roomId");
     const userId = c.get("userId");
-    if (!isMember(db, roomId, userId)) {
+    const email = c.get("userEmail");
+    const isAdmin = config.adminUsers.includes(email);
+    if (!isAdmin && !isMember(db, roomId, userId)) {
       throw new ForbiddenError("Not a member of this room");
     }
     const now = Date.now();
