@@ -4,6 +4,7 @@ import { migrate } from "./migrate";
 import {
   addMember,
   createRoom,
+  deleteRoom,
   getRoom,
   getRoomWithMembers,
   listRooms,
@@ -127,5 +128,27 @@ describe("rooms db", () => {
     setup();
     createRoom(db, "test-room", "user-1");
     expect(removeMember(db, "test-room", "user-2")).toBe(false);
+  });
+
+  it("deleteRoom removes room, members, and events", () => {
+    setup();
+    createRoom(db, "test-room", "user-1");
+    addMember(db, "test-room", "user-1");
+    addMember(db, "test-room", "user-2");
+    // Insert a fake event
+    db.query(
+      "INSERT INTO events (id, room_id, type, format, sender_user_id, payload, ttl_seconds, created_at, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+    ).run("evt-1", "test-room", "test", "v1", "user-1", "{}", 300, Date.now(), Date.now() + 300000);
+
+    expect(deleteRoom(db, "test-room")).toBe(true);
+    expect(getRoom(db, "test-room")).toBeNull();
+    expect(getRoomWithMembers(db, "test-room")).toBeNull();
+    const events = db.query("SELECT * FROM events WHERE room_id = ?").all("test-room");
+    expect(events).toHaveLength(0);
+  });
+
+  it("deleteRoom returns false for non-existent room", () => {
+    setup();
+    expect(deleteRoom(db, "nonexistent")).toBe(false);
   });
 });

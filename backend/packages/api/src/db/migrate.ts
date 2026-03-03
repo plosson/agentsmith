@@ -61,4 +61,9 @@ export function migrate(db: Database): void {
   } catch {
     // Column already exists
   }
+  try {
+    db.exec("ALTER TABLE room_members ADD COLUMN last_seen_at INTEGER");
+  } catch {
+    // Column already exists
+  }
 }

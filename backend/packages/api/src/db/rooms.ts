@@ -77,7 +77,7 @@ export function getRoomWithMembers(db: Database, roomId: string): RoomWithMember
 
   const members = db
     .query(
-      `SELECT rm.user_id, u.email, COALESCE(u.display_name, u.email) AS display_name, rm.joined_at
+      `SELECT rm.user_id, u.email, COALESCE(u.display_name, u.email) AS display_name, rm.joined_at, rm.last_seen_at
        FROM room_members rm
        JOIN users u ON u.id = rm.user_id
        WHERE rm.room_id = ?
@@ -93,6 +93,23 @@ export function isMember(db: Database, roomId: string, userId: string): boolean 
     .query("SELECT 1 FROM room_members WHERE room_id = ? AND user_id = ?")
     .get(roomId, userId);
   return row !== null;
+}
+
+export function deleteRoom(db: Database, roomId: string): boolean {
+  const existing = getRoom(db, roomId);
+  if (!existing) return false;
+  db.query("DELETE FROM events WHERE room_id = ?").run(roomId);
+  db.query("DELETE FROM room_members WHERE room_id = ?").run(roomId);
+  db.query("DELETE FROM rooms WHERE id = ?").run(roomId);
+  return true;
+}
+
+export function updateMemberLastSeen(db: Database, roomId: string, userId: string): void {
+  db.query("UPDATE room_members SET last_seen_at = ? WHERE room_id = ? AND user_id = ?").run(
+    Date.now(),
+    roomId,
+    userId,
+  );
 }
 
 export function addMember(db: Database, roomId: string, userId: string): void {

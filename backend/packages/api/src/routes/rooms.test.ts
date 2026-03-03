@@ -477,6 +477,59 @@ describe("Room routes", () => {
     });
   });
 
+  describe("DELETE /api/v1/rooms/:roomId (admin deletes room)", () => {
+    it("admin can delete a room", async () => {
+      ctx = createTestContext();
+      await ctx.app.request("/api/v1/rooms", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(await authHeader("user-1", "alice@test.com")),
+        },
+        body: JSON.stringify({ id: "my-project" }),
+      });
+      const res = await ctx.app.request("/api/v1/rooms/my-project", {
+        method: "DELETE",
+        headers: await authHeader("admin-1", "admin@test.com"),
+      });
+      expect(res.status).toBe(200);
+      const json = await res.json();
+      expect(json.ok).toBe(true);
+
+      // Verify room is gone
+      const get = await ctx.app.request("/api/v1/rooms/my-project", {
+        headers: await authHeader("admin-1", "admin@test.com"),
+      });
+      expect(get.status).toBe(404);
+    });
+
+    it("non-admin gets 403", async () => {
+      ctx = createTestContext();
+      await ctx.app.request("/api/v1/rooms", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(await authHeader("user-1", "alice@test.com")),
+        },
+        body: JSON.stringify({ id: "my-project" }),
+      });
+      const res = await ctx.app.request("/api/v1/rooms/my-project", {
+        method: "DELETE",
+        headers: await authHeader("user-1", "alice@test.com"),
+      });
+      expect(res.status).toBe(403);
+    });
+
+    it("returns 404 for non-existent room", async () => {
+      ctx = createTestContext();
+      const res = await ctx.app.request("/api/v1/rooms/nonexistent", {
+        method: "DELETE",
+        headers: await authHeader("admin-1", "admin@test.com"),
+      });
+      expect(res.status).toBe(404);
+    });
+  });
+
   // --- Auth required ---
 
   describe("auth required", () => {

@@ -41,7 +41,14 @@ print_banner() {
       l1="url:    ${AGENTSMITH_CLIENT_URL:-…} (local)"
     fi
     l2="user:   ${AGENTSMITH_USER}  room: ${AGENTSMITH_ROOM}"
-    l3="mode:   ${mode}"
+    # Health check for traffic light
+    local indicator="🔴"
+    if [ -n "$AGENTSMITH_CLIENT_URL" ]; then
+      if curl -s --max-time 2 "$AGENTSMITH_CLIENT_URL/health" >/dev/null 2>&1; then
+        indicator="🟢"
+      fi
+    fi
+    l3="mode:   ${mode} ${indicator}"
   fi
   local msg=""
   msg+="\\n  █▀█ █▀▀ █▀▀ █▄ █ ▀█▀   █▀ █▀▄▀█ █ ▀█▀ █ █   ${l1}"
@@ -69,17 +76,19 @@ if [ "$1" = "--status" ]; then
     fi
   done
 
+  local GREEN="\033[32m" RED="\033[31m" RESET="\033[0m"
+
   echo ""
   echo "=== PROXY ==="
   if [ -n "$AGENTSMITH_CLIENT_URL" ]; then
     HEALTH=$(curl -s --max-time 2 "$AGENTSMITH_CLIENT_URL/health" 2>&1)
     if [ $? -eq 0 ]; then
-      echo "OK at $AGENTSMITH_CLIENT_URL"
+      echo -e "${GREEN}●${RESET} OK at $AGENTSMITH_CLIENT_URL"
     else
-      echo "UNREACHABLE at $AGENTSMITH_CLIENT_URL"
+      echo -e "${RED}●${RESET} UNREACHABLE at $AGENTSMITH_CLIENT_URL"
     fi
   else
-    echo "NO CLIENT_URL configured"
+    echo -e "${RED}●${RESET} NO CLIENT_URL configured"
   fi
 
   echo ""
@@ -90,10 +99,10 @@ if [ "$1" = "--status" ]; then
     [ -n "$AGENTSMITH_KEY" ] && AUTH_HEADER="Authorization: Bearer $AGENTSMITH_KEY"
     SERVER_HEALTH=$(curl -s --max-time 3 ${AUTH_HEADER:+-H "$AUTH_HEADER"} "$AGENTSMITH_SERVER_URL/health" 2>&1)
     if [ $? -eq 0 ]; then
-      echo "OK at $AGENTSMITH_SERVER_URL"
+      echo -e "${GREEN}●${RESET} OK at $AGENTSMITH_SERVER_URL"
       echo "$SERVER_HEALTH"
     else
-      echo "UNREACHABLE at $AGENTSMITH_SERVER_URL"
+      echo -e "${RED}●${RESET} UNREACHABLE at $AGENTSMITH_SERVER_URL"
     fi
   else
     echo "local mode (no remote server)"

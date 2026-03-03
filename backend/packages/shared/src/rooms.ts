@@ -10,6 +10,7 @@ export interface RoomMember {
   email: string;
   display_name: string;
   joined_at: number;
+  last_seen_at: number | null;
 }
 
 export interface RoomWithMembers extends Room {

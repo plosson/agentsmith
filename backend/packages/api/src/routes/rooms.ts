@@ -5,6 +5,7 @@ import type { AppEnv } from "../app";
 import {
   addMember,
   createRoom,
+  deleteRoom,
   getRoom,
   getRoomWithMembers,
   isMember,
@@ -94,6 +95,15 @@ export function roomRoutes(db: Database): Hono<AppEnv> {
 
     const user = getOrCreatePendingUser(db, userEmail);
     addMember(db, roomId, user.id);
+    return c.json({ ok: true });
+  });
+
+  router.delete("/rooms/:roomId", requireAdmin, (c) => {
+    const roomId = c.req.param("roomId");
+    const deleted = deleteRoom(db, roomId);
+    if (!deleted) {
+      throw new NotFoundError("Room");
+    }
     return c.json({ ok: true });
   });
 
