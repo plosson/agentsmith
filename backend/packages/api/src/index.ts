@@ -13,7 +13,9 @@ if (!config.authDisabled && !config.jwtSecret) {
 
 const db = getDb();
 migrate(db);
-startCleanup(db, config.cleanupIntervalMs);
+if (config.ttlEnabled) {
+  startCleanup(db, config.cleanupIntervalMs);
+}
 
 const app = createApp(db);
 

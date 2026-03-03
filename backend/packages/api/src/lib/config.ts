@@ -8,6 +8,9 @@ export const config = {
   jwtSecret: process.env.JWT_SECRET || "",
   jwtExpirySeconds: Number.parseInt(process.env.JWT_EXPIRY_SECONDS || "604800", 10), // 7 days
   payloadMaxBytes: Number.parseInt(process.env.PAYLOAD_MAX_BYTES || "65536", 10),
+  get ttlEnabled() {
+    return process.env.TTL_ENABLED === "true";
+  },
   cleanupIntervalMs: Number.parseInt(process.env.CLEANUP_INTERVAL_MS || "300000", 10),
   adminUsers: (process.env.ADMIN_USERS || "")
     .split(",")

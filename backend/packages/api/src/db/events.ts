@@ -1,5 +1,6 @@
 import type { Database } from "bun:sqlite";
 import type { Event } from "@agentsmith/shared";
+import { config } from "../lib/config";
 import { generateUlid } from "../lib/ulid";
 
 export interface InsertEventParams {
@@ -108,15 +109,19 @@ export function queryEvents(
   limit: number,
 ): QueryEventsResult {
   const now = Date.now();
-  const rows = db
-    .query(
-      `SELECT * FROM events
+  const query = config.ttlEnabled
+    ? `SELECT * FROM events
        WHERE room_id = ? AND created_at > ? AND expires_at > ?
          AND target_user_id IS NULL
        ORDER BY created_at ASC
-       LIMIT ?`,
-    )
-    .all(roomId, since, now, limit) as EventRow[];
+       LIMIT ?`
+    : `SELECT * FROM events
+       WHERE room_id = ? AND created_at > ?
+         AND target_user_id IS NULL
+       ORDER BY created_at ASC
+       LIMIT ?`;
+  const params = config.ttlEnabled ? [roomId, since, now, limit] : [roomId, since, limit];
+  const rows = db.query(query).all(...params) as EventRow[];
 
   const events = rows.map(rowToEvent);
   const latestTs = events.length > 0 ? events[events.length - 1].created_at : since;
@@ -131,14 +136,19 @@ export function consumeTargetedEvents(
   sessionId?: string,
 ): Event[] {
   const now = Date.now();
-  const rows = db
-    .query(
-      `SELECT * FROM events
+  const query = config.ttlEnabled
+    ? `SELECT * FROM events
        WHERE room_id = ? AND target_user_id = ? AND expires_at > ?
          AND (target_session_id IS NULL OR target_session_id = ?)
-       ORDER BY created_at ASC`,
-    )
-    .all(roomId, userId, now, sessionId ?? null) as EventRow[];
+       ORDER BY created_at ASC`
+    : `SELECT * FROM events
+       WHERE room_id = ? AND target_user_id = ?
+         AND (target_session_id IS NULL OR target_session_id = ?)
+       ORDER BY created_at ASC`;
+  const params = config.ttlEnabled
+    ? [roomId, userId, now, sessionId ?? null]
+    : [roomId, userId, sessionId ?? null];
+  const rows = db.query(query).all(...params) as EventRow[];
 
   if (rows.length > 0) {
     const ids = rows.map((r) => r.id);

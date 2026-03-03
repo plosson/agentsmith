@@ -9,7 +9,7 @@ import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import type { AppEnv } from "../app";
 import { consumeTargetedEvents, insertEvent, queryEvents } from "../db/events";
-import { addMember, createRoom, getRoom, isMember } from "../db/rooms";
+import { addMember, createRoom, getRoom, isMember, updateMemberLastSeen } from "../db/rooms";
 import { config } from "../lib/config";
 import { ForbiddenError, PayloadTooLargeError, ValidationError } from "../lib/errors";
 import type { EventBus } from "../lib/event-bus";
@@ -69,6 +69,8 @@ export function eventRoutes(db: Database, bus: EventBus): Hono<AppEnv> {
       targetUserId: parsed.data.target?.user_id,
       targetSessionId: parsed.data.target?.session_id,
     });
+
+    updateMemberLastSeen(db, roomId, userId);
 
     if (!parsed.data.target) {
       bus.publish(event);

@@ -64,35 +64,41 @@ describe("events db", () => {
   });
 
   it("excludes expired events from queries", () => {
-    const room = setup();
-    // Insert an event with 0 TTL (already expired)
-    const now = Date.now();
-    db.query(
-      `INSERT INTO events (id, room_id, type, format, sender_user_id, payload, ttl_seconds, created_at, expires_at)
+    const prev = process.env.TTL_ENABLED;
+    process.env.TTL_ENABLED = "true";
+    try {
+      const room = setup();
+      // Insert an event with 0 TTL (already expired)
+      const now = Date.now();
+      db.query(
+        `INSERT INTO events (id, room_id, type, format, sender_user_id, payload, ttl_seconds, created_at, expires_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    ).run(
-      "expired-id-000000000000000",
-      room.id,
-      "hook.Stop",
-      "claude_code_v27",
-      "user-1",
-      "{}",
-      0,
-      now,
-      now,
-    );
+      ).run(
+        "expired-id-000000000000000",
+        room.id,
+        "hook.Stop",
+        "claude_code_v27",
+        "user-1",
+        "{}",
+        0,
+        now,
+        now,
+      );
 
-    insertEvent(db, {
-      roomId: room.id,
-      type: "hook.Stop",
-      format: "claude_code_v27",
-      senderUserId: "alice@test.com",
-      payload: { status: "idle" },
-      ttlSeconds: 600,
-    });
+      insertEvent(db, {
+        roomId: room.id,
+        type: "hook.Stop",
+        format: "claude_code_v27",
+        senderUserId: "alice@test.com",
+        payload: { status: "idle" },
+        ttlSeconds: 600,
+      });
 
-    const result = queryEvents(db, room.id, 0, 50);
-    expect(result.events).toHaveLength(1);
+      const result = queryEvents(db, room.id, 0, 50);
+      expect(result.events).toHaveLength(1);
+    } finally {
+      process.env.TTL_ENABLED = prev;
+    }
   });
 
   it("respects limit parameter", () => {
@@ -176,26 +182,32 @@ describe("events db", () => {
   });
 
   it("consumeTargetedEvents skips expired events", () => {
-    const room = setup();
-    const now = Date.now();
-    db.query(
-      `INSERT INTO events (id, room_id, type, format, sender_user_id, payload, ttl_seconds, created_at, expires_at, target_user_id)
+    const prev = process.env.TTL_ENABLED;
+    process.env.TTL_ENABLED = "true";
+    try {
+      const room = setup();
+      const now = Date.now();
+      db.query(
+        `INSERT INTO events (id, room_id, type, format, sender_user_id, payload, ttl_seconds, created_at, expires_at, target_user_id)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    ).run(
-      "expired-target-00000000000",
-      room.id,
-      "interaction",
-      "canvas_v1",
-      "bob@test.com",
-      '{"action":"old"}',
-      0,
-      now,
-      now,
-      "alice@test.com",
-    );
+      ).run(
+        "expired-target-00000000000",
+        room.id,
+        "interaction",
+        "canvas_v1",
+        "bob@test.com",
+        '{"action":"old"}',
+        0,
+        now,
+        now,
+        "alice@test.com",
+      );
 
-    const consumed = consumeTargetedEvents(db, room.id, "alice@test.com");
-    expect(consumed).toHaveLength(0);
+      const consumed = consumeTargetedEvents(db, room.id, "alice@test.com");
+      expect(consumed).toHaveLength(0);
+    } finally {
+      process.env.TTL_ENABLED = prev;
+    }
   });
 
   it("consumeTargetedEvents with user-only targeting", () => {
